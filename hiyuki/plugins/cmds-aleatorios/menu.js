@@ -9,7 +9,7 @@ const jogos = new Set(['velha','ranking','pontos','jogodavelha','addpontos','tir
 const ordem = Object.keys(labels)
 const descriptions = {
   ping:'Mede o tempo de resposta, recorde, média e memória do bot.',
-  youtube:'Pesquisa até cinco vídeos ou abre um link oficial. Ex.: .youtube nome da música',
+  youtube:'Pesquisa cinco vídeos. Use .youtube nome/mp3 ou nome/mp4; escolha pelo número. Atalho: .play. Envia mídia com licença aberta.',
   spotify:'Pesquisa até cinco faixas e envia link e prévia quando disponível. Ex.: .spotify nome da música',
   limparmusicas:'Limpa pesquisas e arquivos locais de músicas.',
   "info": "Mostra informações do bot.",
