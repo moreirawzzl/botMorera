@@ -1,0 +1,8 @@
+*
+!package*.json
+!*.mjs
+!hiyuki/
+!hiyuki/**
+hiyuki/database/*
+!hiyuki/database/config.json
+hiyuki/arquivos/json/*

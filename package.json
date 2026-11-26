@@ -1,0 +1,14 @@
+{
+  "name": "bot-moreira",
+  "version": "1.0.0",
+  "description": "BOT Moreira para WhatsApp",
+  "scripts": {
+    "start": "node bot.mjs"
+  },
+  "type": "module",
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "^10.4.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

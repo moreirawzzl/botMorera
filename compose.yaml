@@ -1,0 +1,9 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    init: true
+    volumes:
+      - ./auth:/app/auth
+      - ./hiyuki/database:/app/hiyuki/database
+      - ./hiyuki/arquivos/json:/app/hiyuki/arquivos/json

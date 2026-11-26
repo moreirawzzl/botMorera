@@ -1,0 +1,36 @@
+BOT Moreira
+========================
+
+No privado ou em grupos onde o bot participa, qualquer pessoa pode enviar um
+video com .figaudio na legenda ou responder a um video com .figaudio. O bot devolve a figurinha
+animada com ate 10 segundos do som original na mesma conversa.
+
+INSTALACAO (CMD do Windows, dentro da pasta deste projeto)
+----------------------------------------------------------
+1) Instalar o ffmpeg (so na primeira vez):
+
+   winget install Gyan.FFmpeg
+
+   Depois FECHE o CMD e abra de novo na pasta do projeto.
+   Para conferir:  ffmpeg -version
+
+2) Instalar as dependencias:
+
+   npm install
+
+3) Na pasta do bot existente, mantenha a pasta auth para reutilizar a sessao.
+
+4) Rodar:
+
+   npm start
+
+   Use .menu para ver os comandos e .menudono com a conta 5511978912732.
+   Para parar: Ctrl + C.
+
+DICAS
+-----
+- Nao rode este bot e o outro script (ver.mjs) ao mesmo tempo com a
+  mesma sessao.
+- Para mudar o tempo maximo do video, edite DURACAO_MAXIMA no bot.mjs.
+- Se aparecer "Nao consegui fazer a figurinha", cole a mensagem do CMD
+  para o Claude ajustar.
