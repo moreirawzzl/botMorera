@@ -1,12 +1,16 @@
 const labels = {
- fig:'🖼️ FIGURINHAS', jogos:'🎮 JOGOS E PONTOS', geral:'📌 COMANDOS GERAIS',
+ musicas:'🎵 MÚSICAS', fig:'🖼️ FIGURINHAS', jogos:'🎮 JOGOS E PONTOS', geral:'📌 COMANDOS GERAIS',
  admin:'🛡️ ADMINISTRAÇÃO', dono:'👑 DONO', resenha:'😂 RESENHA', premium:'💎 PREMIUM',
  downloads:'📥 DOWNLOADS', efeitos:'✨ EFEITOS', midias:'📷 MÍDIAS', 'inteligencia-ia':'🤖 IA', rpg:'⚔️ RPG', menu:'📋 OUTROS MENUS'
 }
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
+const musicas = new Set(['youtube','spotify'])
 const jogos = new Set(['velha','ranking','pontos','jogodavelha','addpontos','tirarpontos'])
 const ordem = Object.keys(labels)
 const descriptions = {
+  youtube:'Pesquisa até cinco vídeos ou abre um link oficial. Ex.: .youtube nome da música',
+  spotify:'Pesquisa até cinco faixas e envia link e prévia quando disponível. Ex.: .spotify nome da música',
+  limparmusicas:'Limpa pesquisas e arquivos locais de músicas.',
   "info": "Mostra informações do bot.",
   "provavel": "Sorteia uma porcentagem. Ex.: .provavel ganhar hoje",
   "enquete": "Cria enquete. Ex.: .enquete Pergunta | Sim | Não",
@@ -59,11 +63,11 @@ module.exports = {
   for(const c of commandManager.ObterTodosComandos()){
    if(c.isAlias || c.name==='menu') continue
    if(c.category==='dono'&&!isDono || c.category==='admin'&&!isAdm) continue
-   const cat = c.category==='cmds-aleatorios' ? (fig.has(c.name)?'fig':jogos.has(c.name)?'jogos':'geral') : c.category
+   const cat = c.category==='cmds-aleatorios' ? (musicas.has(c.name)?'musicas':fig.has(c.name)?'fig':jogos.has(c.name)?'jogos':'geral') : c.category
    if(!grupos.has(cat)) grupos.set(cat,[])
    grupos.get(cat).push(c)
   }
-  const aliases={figurinha:'fig',figurinhas:'fig',comandos:'geral',gerais:'geral',jogo:'jogos'}
+  const aliases={musica:'musicas','música':'musicas','músicas':'musicas',figurinha:'fig',figurinhas:'fig',comandos:'geral',gerais:'geral',jogo:'jogos'}
   const arg=(ctx.args[0]||'').toLowerCase()
   const filtro=aliases[arg]||arg
   if(filtro&&!grupos.has(filtro)) return reply('Use '+prefix+'menu ou '+prefix+'menu figurinhas / geral / jogos / admin / dono / resenha')
@@ -79,6 +83,6 @@ module.exports = {
    if(commands.some(c=>c.name==='figfrase')) lines.push('│   branco • preto • neon • gold','│   vidro • transparente • piscar','│   arcoiris • glitch • neon animado')
    sections.push('╭─ *'+(labels[cat]||cat.toUpperCase())+'*\n'+lines.join('\n')+'\n╰────────────')
   }
-  return reply(['╔══ *BOT MOREIRA* ══╗','🟢 Online  •  Prefixo: '+prefix,'📂 '+prefix+'menu figurinhas | geral | jogos',...sections,'Base Hiyuki • MisheruModz'].join('\n\n'))
+  return reply(['╔══ *BOT MOREIRA* ══╗','🟢 Online  •  Prefixo: '+prefix,'📂 '+prefix+'menu figurinhas | musicas | geral | jogos',...sections,'Base Hiyuki • MisheruModz'].join('\n\n'))
  }
 }
