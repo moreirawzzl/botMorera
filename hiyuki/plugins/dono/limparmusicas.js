@@ -1,0 +1,1 @@
+module.exports={name:'limparmusicas',description:'Limpa pesquisas e arquivos de música locais.',execute:ctx=>ctx.isDono?ctx.reply('Pesquisas limpas. Arquivos removidos: '+require('../../arquivos/js/musicas.js').clear()):ctx.reply('Exclusivo do dono.')}
