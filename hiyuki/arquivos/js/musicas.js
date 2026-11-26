@@ -23,9 +23,19 @@ async function spotifyToken(){
 function youtubeId(q){
  try{const u=new URL(q);if(u.hostname==='youtu.be')return u.pathname.slice(1);if(['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com'].includes(u.hostname))return u.searchParams.get('v')||u.pathname.match(/^\/(?:shorts|live)\/([^/]+)/)?.[1]}catch{}
 }
+// Pesquisa inspirada na função Youtoba de PSYKHE; integração independente.
 async function youtube(q){
  const key=process.env.YOUTUBE_API_KEY
  const id=youtubeId(q)
+ if(/^https?:\/\//i.test(q)&&(!id||! /^[\w-]{11}$/.test(id)))throw Error('Use um link válido de vídeo do YouTube.')
+ if(!id&&!key){
+  try{
+   const mod=require('youtube-sr');const api=mod.default||mod.YouTube||mod
+   const results=await api.search(q,{limit:5,type:'video'})
+   const items=results.filter(x=>/^[\w-]{11}$/.test(x.id)).slice(0,5).map(x=>({title:x.title||'Vídeo do YouTube',url:'https://www.youtube.com/watch?v='+x.id,duration:x.durationFormatted,service:'youtube'}))
+   if(items.length)return items
+  }catch(e){console.log('Pesquisa alternativa yt-dlp:',e.code||e.name)}
+ }
  if(!key){
   if(id&&!/^[\w-]{11}$/.test(id))throw Error('Link inválido.')
   const target=id?'https://www.youtube.com/watch?v='+id:'ytsearch5:'+q.slice(0,250)
@@ -57,19 +67,21 @@ async function downloadYouTube(ctx,item){
   const opts={timeout:60000,maxBuffer:8*1024*1024,windowsHide:true}
   const {stdout}=await run(executable,['--ignore-config','--no-playlist','--skip-download','--dump-single-json','--',url],opts)
   const meta=JSON.parse(stdout)
-  const licensed=/creative commons|cc.by|public domain/i.test(meta.license||'')
+  let licensed=/creative commons|cc.by|public domain/i.test(meta.license||'')
+  if(!licensed&&process.env.YOUTUBE_API_KEY){const u=new URL('https://www.googleapis.com/youtube/v3/videos');u.search=new URLSearchParams({key:process.env.YOUTUBE_API_KEY,part:'status',id});const r=await json(u);licensed=r.items?.[0]?.status?.license==='creativeCommon'}
   if(!licensed)return ctx.reply('🎵 '+item.title+'\n'+url+'\nNão encontrei licença de download aberta nos dados do vídeo.')
   if(meta.is_live||!Number.isFinite(meta.duration)||meta.duration>600)return ctx.reply('Escolha um vídeo gravado de até 10 minutos.')
   dir=fs.mkdtempSync(path.join(os.tmpdir(),'moreira-musica-'))
-  await ctx.reply('🎵 Preparando áudio: '+item.title)
-  await run(executable,['--ignore-config','--no-playlist','--no-progress','--max-filesize','25M','-f','bestaudio','-o',path.join(dir,'audio.%(ext)s'),'--',url],{...opts,timeout:120000})
+  const video=item.format==='mp4'
+  await ctx.reply('🎵 Preparando '+(video?'vídeo':'áudio')+': '+item.title)
+  await run(executable,['--ignore-config','--no-playlist','--no-progress','--max-filesize','25M','-f',video?'best[ext=mp4][height<=480]/best[height<=480]':'bestaudio','-o',path.join(dir,'audio.%(ext)s'),'--',url],{...opts,timeout:120000})
   const input=fs.readdirSync(dir).find(n=>/^audio\.[a-z0-9]+$/i.test(n)&&!/\.(part|ytdl)$/i.test(n))
   if(!input)throw Error('Áudio não baixado.')
   const {ffmpeg}=await import('../../../lib.mjs')
-  const output=path.join(dir,'saida.mp3')
-  await ffmpeg(['-i',path.join(dir,input),'-vn','-c:a','libmp3lame','-b:a','128k',output])
+  const output=path.join(dir,video?'saida.mp4':'saida.mp3')
+  await ffmpeg(['-i',path.join(dir,input),...(video?['-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac','-movflags','+faststart']:['-vn','-c:a','libmp3lame','-b:a','128k']),output])
   if(fs.statSync(output).size>16*1024*1024)throw Error('Áudio ultrapassa o limite de 16 MB.')
-  return await ctx.columbina.sendMessage(ctx.from,{audio:fs.readFileSync(output),mimetype:'audio/mpeg'},{quoted:ctx.info})
+  return await ctx.columbina.sendMessage(ctx.from,video?{video:fs.readFileSync(output),mimetype:'video/mp4'}:{audio:fs.readFileSync(output),mimetype:'audio/mpeg'},{quoted:ctx.info})
  }finally{activeDownloads--;if(dir)fs.rmSync(dir,{recursive:true,force:true})}
 }
 async function deliver(ctx,item){
@@ -85,7 +97,9 @@ async function deliver(ctx,item){
  await ctx.columbina.sendMessage(ctx.from,{audio:Buffer.concat(chunks),mimetype:'audio/mpeg'},{quoted:ctx.info})
 }
 async function execute(ctx,service){
- const q=ctx.q?.trim()
+ let q=ctx.q?.trim()
+ let format='mp3'
+ if(service==='youtube'&&q){const m=q.match(/\/(mp3|mp4|audio|video)$/i);if(m){format=/mp4|video/i.test(m[1])?'mp4':'mp3';q=q.slice(0,-m[0].length).trim()}}
  if(!q)return ctx.reply('Use '+ctx.prefix+service+' nome da música ou link.')
  const owner=ctx.from+'|'+ctx.sender+'|'+service
  const now=Date.now()
@@ -98,11 +112,12 @@ async function execute(ctx,service){
   }
   const items=await (service==='youtube'?youtube(q):spotify(q))
   if(!items.length)return ctx.reply('Nenhum resultado encontrado.')
+  if(service==='youtube')for(const item of items)item.format=format
   if(items.length===1)return await deliver(ctx,items[0])
   if(sessions.size>=500)sessions.delete(sessions.keys().next().value)
   sessions.set(owner,{items,until:now+ttl})
-  return ctx.reply('🎵 *'+service.toUpperCase()+' — RESULTADOS*\n\n'+items.map((x,i)=>(i+1)+'. '+x.title).join('\n')+'\n\nEscolha com '+ctx.prefix+service+' 1 até '+items.length+'.\nSeleção válida por 5 minutos.')
- }catch(e){console.error(service,e.message);return ctx.reply('Não consegui consultar o serviço: '+e.message)}
+  return ctx.reply('🎵 *'+service.toUpperCase()+' — RESULTADOS*\n\n'+items.map((x,i)=>(i+1)+'. '+x.title+(x.duration?' • '+x.duration:'')).join('\n')+'\n\nEscolha com '+ctx.prefix+service+' 1 até '+items.length+'.\nSeleção válida por 5 minutos.')
+ }catch(e){console.error(service,e.code||e.name);return ctx.reply('Não consegui processar o pedido. Confira a conexão, yt-dlp, FFmpeg e as credenciais do serviço.')}
 }
 function clear(){sessions.clear();if(!fs.existsSync(cache)||!fs.lstatSync(cache).isDirectory()||fs.lstatSync(cache).isSymbolicLink())return 0;let n=0;for(const e of fs.readdirSync(cache,{withFileTypes:true})){if(e.isFile()){fs.unlinkSync(path.join(cache,e.name));n++}}return n}
 module.exports={execute,clear}
