@@ -1,1 +1,1 @@
-module.exports={name:'youtube',description:'Pesquisa cinco vídeos e envia o link oficial.',execute:ctx=>require('../../arquivos/js/musicas.js').execute(ctx,'youtube')}
+module.exports={name:'youtube',aliases:['play'],description:'Pesquisa até cinco vídeos. Selecione pelo número; use /mp3 ou /mp4 para mídia com licença aberta.',execute:ctx=>require('../../arquivos/js/musicas.js').execute(ctx,'youtube')}
