@@ -6,6 +6,51 @@ const labels = {
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
 const jogos = new Set(['velha','ranking','pontos','jogodavelha','addpontos','tirarpontos'])
 const ordem = Object.keys(labels)
+const descriptions = {
+  "info": "Mostra informações do bot.",
+  "provavel": "Sorteia uma porcentagem. Ex.: .provavel ganhar hoje",
+  "enquete": "Cria enquete. Ex.: .enquete Pergunta | Sim | Não",
+  "sticker": "Transforma foto ou vídeo marcado em figurinha.",
+  "fig": "Cria uma figurinha de mídia.",
+  "figaudio": "Cria figurinha com áudio a partir de vídeo.",
+  "figfrase": "Transforma texto marcado em figurinha quadrada. Ex.: .figfrase neon",
+  "togif": "Converte figurinha em GIF.",
+  "toimg": "Converte figurinha em imagem.",
+  "frase": "Transforma mensagem marcada em imagem de citação.",
+  "quote": "Cria imagem de citação.",
+  "velha": "Desafia alguém ou joga uma casa de 1 a 9. Ex.: .velha @pessoa",
+  "ranking": "Mostra a classificação dos jogadores.",
+  "pontos": "Consulta saldo de pontos.",
+  "add": "Adiciona membro ao grupo pelo número ou mensagem marcada.",
+  "ban": "Remove membro do grupo.",
+  "mute": "Bloqueia acesso aos comandos do bot. Ex.: .mute @pessoa 10m",
+  "unmute": "Libera acesso ao bot.",
+  "mutados": "Lista usuários bloqueados.",
+  "promover": "Torna membro administrador.",
+  "rebaixar": "Retira cargo de administrador.",
+  "apagar": "Apaga a mensagem marcada, conforme permissões.",
+  "marcar": "Marca membros do grupo.",
+  "grupo": "Gerencia abertura e fechamento do grupo.",
+  "bemvindo": "Configura mensagens de boas-vindas.",
+  "addpontos": "Adiciona pontos. Ex.: .addpontos 100",
+  "tirarpontos": "Retira pontos. Ex.: .tirarpontos 50",
+  "limparfotos": "Remove fotos guardadas pelo bot.",
+  "limparfigurinhas": "Remove figurinhas armazenadas na pasta de mídias.",
+  "limparmidias": "Remove fotos e figurinhas armazenadas.",
+  "limparpedidos": "Limpa pedidos pendentes de figurinha com áudio.",
+  "agendar": "Programa envio de mensagem.",
+  "botligar": "Reativa os comandos do bot.",
+  "botdesligar": "Desativa os comandos para outros usuários.",
+  "gerarlink": "Gera link de uma mídia.",
+  "premium": "Gerencia acesso premium.",
+  "resenha": "Ativa ou desativa modo resenha.",
+  "setprefix": "Altera o prefixo do bot.",
+  "setprefixgp": "Altera o prefixo do grupo.",
+  "sair": "Faz o bot sair do grupo.",
+  "getquoted": "Mostra informações da mensagem marcada.",
+  "guardarfoto": "Guarda foto enviada por você.",
+  "minhafoto": "Exibe sua foto guardada."
+}
 module.exports = {
  name:'menu', description:'Menu organizado por categorias',
  async execute(ctx) {
@@ -26,7 +71,11 @@ module.exports = {
   for(const [cat,commands] of grupos){
    if(!commands.length || filtro&&filtro!==cat) continue
    commands.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'))
-   const lines=commands.map(c=>'│ '+prefix+c.name+(c.name==='figfrase'?' [estilo]':'')+(c.name==='figfrase'?' — Texto em figurinha':''))
+   const lines=commands.flatMap(c=>{
+    const desc=(descriptions[c.name]||c.description||'Comando do bot.').replace(/\.(?=[a-z]+\s)/g,prefix)
+    const aliases=Array.isArray(c.aliases)&&c.aliases.length?'\n│   Aliases: '+c.aliases.map(a=>prefix+a).join(', '):''
+    return ['│ *'+prefix+c.name+(c.name==='figfrase'?' [estilo]':'')+'*','│   '+desc+aliases,'│']
+   })
    if(commands.some(c=>c.name==='figfrase')) lines.push('│   branco • preto • neon • gold','│   vidro • transparente • piscar','│   arcoiris • glitch • neon animado')
    sections.push('╭─ *'+(labels[cat]||cat.toUpperCase())+'*\n'+lines.join('\n')+'\n╰────────────')
   }
