@@ -8,6 +8,7 @@ const musicas = new Set(['youtube','spotify'])
 const jogos = new Set(['velha','ranking','pontos','jogodavelha','addpontos','tirarpontos'])
 const ordem = Object.keys(labels)
 const descriptions = {
+  ping:'Mede o tempo de resposta, recorde, média e memória do bot.',
   youtube:'Pesquisa até cinco vídeos ou abre um link oficial. Ex.: .youtube nome da música',
   spotify:'Pesquisa até cinco faixas e envia link e prévia quando disponível. Ex.: .spotify nome da música',
   limparmusicas:'Limpa pesquisas e arquivos locais de músicas.',
