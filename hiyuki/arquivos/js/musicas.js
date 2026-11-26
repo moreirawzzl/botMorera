@@ -1,5 +1,9 @@
 const fs=require('node:fs'), path=require('node:path')
-const {randomBytes}=require('node:crypto')
+const {execFile}=require('node:child_process')
+const {promisify}=require('node:util')
+const os=require('node:os')
+const run=promisify(execFile)
+let activeDownloads=0
 const cache=path.resolve(__dirname,'../../database/musicas')
 const sessions=new Map()
 const ttl=5*60*1000
@@ -22,12 +26,17 @@ function youtubeId(q){
 async function youtube(q){
  const key=process.env.YOUTUBE_API_KEY
  const id=youtubeId(q)
- if(!key){if(id&&/^[\w-]{11}$/.test(id))return [{title:'Vídeo do YouTube',url:'https://www.youtube.com/watch?v='+id}];throw Error('Configure YOUTUBE_API_KEY para pesquisar vídeos.')}
+ if(!key){
+  if(id&&!/^[\w-]{11}$/.test(id))throw Error('Link inválido.')
+  const target=id?'https://www.youtube.com/watch?v='+id:'ytsearch5:'+q.slice(0,250)
+  const {stdout}=await run(process.env.YTDLP_PATH||'yt-dlp',['--ignore-config','--no-playlist','--flat-playlist','--dump-json','--skip-download','--',target],{timeout:45000,maxBuffer:4*1024*1024,windowsHide:true})
+  return stdout.trim().split('\n').filter(Boolean).slice(0,5).map(line=>JSON.parse(line)).filter(x=>/^[\w-]{11}$/.test(x.id)).map(x=>({title:x.title||'Vídeo do YouTube',url:'https://www.youtube.com/watch?v='+x.id,service:'youtube'}))
+ }
  const base='https://www.googleapis.com/youtube/v3/'
  const u=new URL(base+(id?'videos':'search'))
  u.search=new URLSearchParams({key,part:id?'snippet,status':'snippet',...(id?{id}:{q,type:'video',maxResults:'5'})})
  const r=await json(u)
- return (r.items||[]).slice(0,5).map(x=>({title:x.snippet.title,url:'https://www.youtube.com/watch?v='+(typeof x.id==='string'?x.id:x.id.videoId)}))
+ return (r.items||[]).slice(0,5).map(x=>({title:x.snippet.title,url:'https://www.youtube.com/watch?v='+(typeof x.id==='string'?x.id:x.id.videoId),service:'youtube'}))
 }
 async function spotify(q){
  const t=await spotifyToken(),headers={Authorization:'Bearer '+t}
@@ -36,7 +45,35 @@ async function spotify(q){
  const r=await json(id?'https://api.spotify.com/v1/tracks/'+id:'https://api.spotify.com/v1/search?'+new URLSearchParams({q,type:'track',limit:'5'}),{headers})
  return (id?[r]:r.tracks?.items||[]).slice(0,5).map(x=>({title:x.name+' — '+x.artists.map(a=>a.name).join(', '),url:x.external_urls.spotify,preview:x.preview_url}))
 }
+async function downloadYouTube(ctx,item){
+ const id=youtubeId(item.url)
+ if(!id||!/^[\w-]{11}$/.test(id))return ctx.reply('Link de vídeo inválido.')
+ if(activeDownloads>=2)return ctx.reply('Conversor ocupado. Tente novamente em instantes.')
+ activeDownloads++
+ let dir
+ try {
+  const executable=process.env.YTDLP_PATH||'yt-dlp'
+  const url='https://www.youtube.com/watch?v='+id
+  const opts={timeout:60000,maxBuffer:8*1024*1024,windowsHide:true}
+  const {stdout}=await run(executable,['--ignore-config','--no-playlist','--skip-download','--dump-single-json','--',url],opts)
+  const meta=JSON.parse(stdout)
+  const licensed=/creative commons|cc.by|public domain/i.test(meta.license||'')
+  if(!licensed)return ctx.reply('🎵 '+item.title+'\n'+url+'\nNão encontrei licença de download aberta nos dados do vídeo.')
+  if(meta.is_live||!Number.isFinite(meta.duration)||meta.duration>600)return ctx.reply('Escolha um vídeo gravado de até 10 minutos.')
+  dir=fs.mkdtempSync(path.join(os.tmpdir(),'moreira-musica-'))
+  await ctx.reply('🎵 Preparando áudio: '+item.title)
+  await run(executable,['--ignore-config','--no-playlist','--no-progress','--max-filesize','25M','-f','bestaudio','-o',path.join(dir,'audio.%(ext)s'),'--',url],{...opts,timeout:120000})
+  const input=fs.readdirSync(dir).find(n=>/^audio\.[a-z0-9]+$/i.test(n)&&!/\.(part|ytdl)$/i.test(n))
+  if(!input)throw Error('Áudio não baixado.')
+  const {ffmpeg}=await import('../../../lib.mjs')
+  const output=path.join(dir,'saida.mp3')
+  await ffmpeg(['-i',path.join(dir,input),'-vn','-c:a','libmp3lame','-b:a','128k',output])
+  if(fs.statSync(output).size>16*1024*1024)throw Error('Áudio ultrapassa o limite de 16 MB.')
+  return await ctx.columbina.sendMessage(ctx.from,{audio:fs.readFileSync(output),mimetype:'audio/mpeg'},{quoted:ctx.info})
+ }finally{activeDownloads--;if(dir)fs.rmSync(dir,{recursive:true,force:true})}
+}
 async function deliver(ctx,item){
+ if(item.service==='youtube')return downloadYouTube(ctx,item)
  await ctx.reply('🎵 '+item.title+'\n'+item.url)
  if(!item.preview)return
  const u=new URL(item.preview)
