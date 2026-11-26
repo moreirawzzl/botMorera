@@ -4,12 +4,12 @@ const labels = {
  downloads:'📥 DOWNLOADS', efeitos:'✨ EFEITOS', midias:'📷 MÍDIAS', 'inteligencia-ia':'🤖 IA', rpg:'⚔️ RPG', menu:'📋 OUTROS MENUS'
 }
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
-const musicas = new Set(['youtube','spotify'])
+const musicas = new Set(['play','spotify'])
 const jogos = new Set(['velha','ranking','pontos','jogodavelha','addpontos','tirarpontos'])
 const ordem = Object.keys(labels)
 const descriptions = {
   ping:'Mede o tempo de resposta, recorde, média e memória do bot.',
-  youtube:'Pesquisa cinco vídeos. Use .youtube nome/mp3 ou nome/mp4; escolha pelo número. Atalho: .play. Envia mídia com licença aberta.',
+  play:'Pesquisa cinco vídeos por nome ou link. Use .play nome/mp3 ou nome/mp4; escolha pelo número.',
   spotify:'Pesquisa até cinco faixas e envia link e prévia quando disponível. Ex.: .spotify nome da música',
   limparmusicas:'Limpa pesquisas e arquivos locais de músicas.',
   "info": "Mostra informações do bot.",
