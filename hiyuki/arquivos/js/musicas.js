@@ -30,24 +30,25 @@ async function youtube(q){
  if(/^https?:\/\//i.test(q)&&(!id||! /^[\w-]{11}$/.test(id)))throw Error('Use um link válido de vídeo do YouTube.')
  if(id&&!key){
   try{
-   const mod=require('youtube-sr');const api=mod.default||mod.YouTube||mod
+   const mod=require('youtube-sr');const api=[mod.default,mod.YouTube,mod.default?.YouTube,mod].find(x=>typeof x?.search==='function');if(!api)throw Error('Exportação search indisponível em youtube-sr')
+   if(typeof api.getVideo!=='function')throw Error('getVideo indisponível')
    const v=await api.getVideo('https://www.youtube.com/watch?v='+id)
    if(v?.title)return [{title:v.title,url:'https://www.youtube.com/watch?v='+id,duration:v.durationFormatted,service:'youtube'}]
-  }catch(e){console.log('Consulta alternativa yt-dlp:',e.code||e.name)}
+  }catch(e){console.log('Consulta alternativa yt-dlp:',e.code||e.message||e.name)}
  }
  if(!id&&!key){
   try{
-   const mod=require('youtube-sr');const api=mod.default||mod.YouTube||mod
+   const mod=require('youtube-sr');const api=[mod.default,mod.YouTube,mod.default?.YouTube,mod].find(x=>typeof x?.search==='function');if(!api)throw Error('Exportação search indisponível em youtube-sr')
    const results=await api.search(q,{limit:5,type:'video'})
-   const items=results.filter(x=>/^[\w-]{11}$/.test(x.id)).slice(0,5).map(x=>({title:x.title||'Vídeo do YouTube',url:'https://www.youtube.com/watch?v='+x.id,duration:x.durationFormatted,service:'youtube'}))
+   const items=(Array.isArray(results)?results:[]).filter(x=>x&&/^[\w-]{11}$/.test(x.id)).slice(0,5).map(x=>({title:x.title||'Vídeo do YouTube',url:'https://www.youtube.com/watch?v='+x.id,duration:typeof x.durationFormatted==='string'?x.durationFormatted:undefined,service:'youtube'}))
    if(items.length)return items
-  }catch(e){console.log('Pesquisa alternativa yt-dlp:',e.code||e.name)}
+  }catch(e){console.log('Pesquisa alternativa yt-dlp:',e.code||e.message||e.name)}
  }
  if(!key){
   if(id&&!/^[\w-]{11}$/.test(id))throw Error('Link inválido.')
   const target=id?'https://www.youtube.com/watch?v='+id:'ytsearch5:'+q.slice(0,250)
   const {stdout}=await run(process.env.YTDLP_PATH||'yt-dlp',['--ignore-config','--no-playlist','--flat-playlist','--dump-json','--skip-download','--',target],{timeout:45000,maxBuffer:4*1024*1024,windowsHide:true})
-  return stdout.trim().split('\n').filter(Boolean).slice(0,5).map(line=>JSON.parse(line)).filter(x=>/^[\w-]{11}$/.test(x.id)).map(x=>({title:x.title||'Vídeo do YouTube',url:'https://www.youtube.com/watch?v='+x.id,service:'youtube'}))
+  return stdout.trim().split('\n').filter(Boolean).slice(0,5).map(line=>JSON.parse(line)).filter(x=>/^[\w-]{11}$/.test(x.id)).map(x=>({title:x.title||'Vídeo do YouTube',url:'https://www.youtube.com/watch?v='+x.id,duration:Number.isFinite(x.duration)?Math.floor(x.duration/60)+':'+String(Math.floor(x.duration%60)).padStart(2,'0'):undefined,service:'youtube'}))
  }
  const base='https://www.googleapis.com/youtube/v3/'
  const u=new URL(base+(id?'videos':'search'))
