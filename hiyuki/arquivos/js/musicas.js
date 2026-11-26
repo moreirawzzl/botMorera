@@ -28,6 +28,13 @@ async function youtube(q){
  const key=process.env.YOUTUBE_API_KEY
  const id=youtubeId(q)
  if(/^https?:\/\//i.test(q)&&(!id||! /^[\w-]{11}$/.test(id)))throw Error('Use um link válido de vídeo do YouTube.')
+ if(id&&!key){
+  try{
+   const mod=require('youtube-sr');const api=mod.default||mod.YouTube||mod
+   const v=await api.getVideo('https://www.youtube.com/watch?v='+id)
+   if(v?.title)return [{title:v.title,url:'https://www.youtube.com/watch?v='+id,duration:v.durationFormatted,service:'youtube'}]
+  }catch(e){console.log('Consulta alternativa yt-dlp:',e.code||e.name)}
+ }
  if(!id&&!key){
   try{
    const mod=require('youtube-sr');const api=mod.default||mod.YouTube||mod
@@ -97,10 +104,11 @@ async function deliver(ctx,item){
  await ctx.columbina.sendMessage(ctx.from,{audio:Buffer.concat(chunks),mimetype:'audio/mpeg'},{quoted:ctx.info})
 }
 async function execute(ctx,service){
+ const command=service==='youtube'?'play':service
  let q=ctx.q?.trim()
  let format='mp3'
- if(service==='youtube'&&q){const m=q.match(/\/(mp3|mp4|audio|video)$/i);if(m){format=/mp4|video/i.test(m[1])?'mp4':'mp3';q=q.slice(0,-m[0].length).trim()}}
- if(!q)return ctx.reply('Use '+ctx.prefix+service+' nome da música ou link.')
+ if(service==='youtube'&&q){const m=q.match(/(?:\/|\.)(mp3|mp4|audio|video)$/i);if(m){format=/mp4|video/i.test(m[1])?'mp4':'mp3';q=q.slice(0,-m[0].length).trim()}}
+ if(!q)return ctx.reply('Use '+ctx.prefix+command+' nome da música ou link.')
  const owner=ctx.from+'|'+ctx.sender+'|'+service
  const now=Date.now()
  for(const [k,v] of sessions)if(v.until<now)sessions.delete(k)
@@ -116,7 +124,7 @@ async function execute(ctx,service){
   if(items.length===1)return await deliver(ctx,items[0])
   if(sessions.size>=500)sessions.delete(sessions.keys().next().value)
   sessions.set(owner,{items,until:now+ttl})
-  return ctx.reply('🎵 *'+service.toUpperCase()+' — RESULTADOS*\n\n'+items.map((x,i)=>(i+1)+'. '+x.title+(x.duration?' • '+x.duration:'')).join('\n')+'\n\nEscolha com '+ctx.prefix+service+' 1 até '+items.length+'.\nSeleção válida por 5 minutos.')
+  return ctx.reply('🎵 *'+command.toUpperCase()+' — RESULTADOS*\n\n'+items.map((x,i)=>(i+1)+'. '+x.title+(x.duration?' • '+x.duration:'')).join('\n')+'\n\nEscolha com '+ctx.prefix+command+' 1 até '+items.length+'.\nSeleção válida por 5 minutos.')
  }catch(e){console.error(service,e.code||e.name);return ctx.reply('Não consegui processar o pedido. Confira a conexão, yt-dlp, FFmpeg e as credenciais do serviço.')}
 }
 function clear(){sessions.clear();if(!fs.existsSync(cache)||!fs.lstatSync(cache).isDirectory()||fs.lstatSync(cache).isSymbolicLink())return 0;let n=0;for(const e of fs.readdirSync(cache,{withFileTypes:true})){if(e.isFile()){fs.unlinkSync(path.join(cache,e.name));n++}}return n}
