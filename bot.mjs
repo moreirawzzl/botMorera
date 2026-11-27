@@ -1,3 +1,5 @@
+import moderacao from './hiyuki/arquivos/js/moderacao.js'
+import rankinggrupo from './hiyuki/arquivos/js/rankinggrupo.js'
 import { rememberName } from './extras.mjs'
 import agenda from './hiyuki/arquivos/js/agenda.js'
 import * as Baileys from '@whiskeysockets/baileys'
@@ -207,8 +209,13 @@ async function iniciar() {
         : m.message
       const texto = conteudo?.videoMessage?.caption ?? conteudo?.imageMessage?.caption ?? conteudo?.extendedTextMessage?.text ?? conteudo?.conversation
       const comando = (texto || '').normalize('NFKC').replace(/[\u200b-\u200f\ufeff]/gu, '').trim()
-      if (!comando) continue
       const jid = m.key.remoteJid
+      if (aoVivo && jid?.endsWith('@g.us')) {
+        const removida = await moderacao.inspect(sock,m,comando).catch(e=>{console.error('Moderacao:',e.message);return false})
+        if (removida) continue
+        rankinggrupo.count(m)
+      }
+      if (!comando) continue
       const emGrupo = jid?.endsWith('@g.us')
       if (!emGrupo && !jid?.endsWith('@s.whatsapp.net') && !jid?.endsWith('@lid')) continue
       const chave = jid + '/' + m.key.id

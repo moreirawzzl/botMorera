@@ -1,10 +1,11 @@
 const labels = {
- musicas:'🎵 MÚSICAS', fig:'🖼️ FIGURINHAS', jogos:'🎮 JOGOS E PONTOS', geral:'📌 COMANDOS GERAIS',
+ utilidades:'🧰 UTILIDADES', musicas:'🎵 MÚSICAS', fig:'🖼️ FIGURINHAS', jogos:'🎮 JOGOS E PONTOS', geral:'📌 COMANDOS GERAIS',
  admin:'🛡️ ADMINISTRAÇÃO', dono:'👑 DONO', resenha:'😂 RESENHA', premium:'💎 PREMIUM',
  downloads:'📥 DOWNLOADS', efeitos:'✨ EFEITOS', midias:'📷 MÍDIAS', rpg:'⚔️ RPG', menu:'📋 OUTROS MENUS'
 }
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
 const musicas = new Set(['play','spotify'])
+const utilidades = new Set(['cep','cotacao','clima','lembrete','traduzir','qrcode'])
 const jogos = new Set(['velha','ranking','pontos','jogodavelha','addpontos','tirarpontos'])
 const ordem = Object.keys(labels)
 const descriptions = {
@@ -64,7 +65,7 @@ module.exports = {
   for(const c of commandManager.ObterTodosComandos()){
    if(c.isAlias || c.name==='menu' || c.name==='ia') continue
    if(c.category==='dono'&&!isDono || c.category==='admin'&&!isAdm) continue
-   const cat = c.category==='cmds-aleatorios' ? (musicas.has(c.name)?'musicas':fig.has(c.name)?'fig':jogos.has(c.name)?'jogos':'geral') : c.category
+   const cat = c.category==='cmds-aleatorios' ? (utilidades.has(c.name)?'utilidades':musicas.has(c.name)?'musicas':fig.has(c.name)?'fig':jogos.has(c.name)?'jogos':'geral') : c.category
    if(!grupos.has(cat)) grupos.set(cat,[])
    grupos.get(cat).push(c)
   }
@@ -84,6 +85,6 @@ module.exports = {
    if(commands.some(c=>c.name==='figfrase')) lines.push('│   branco • preto • neon • gold','│   vidro • transparente • piscar','│   arcoiris • glitch • neon animado')
    sections.push('╭─ *'+(labels[cat]||cat.toUpperCase())+'*\n'+lines.join('\n')+'\n╰────────────')
   }
-  return reply(['╔══ *BOT MOREIRA* ══╗','🟢 Online  •  Prefixo: '+prefix,'📂 '+prefix+'menu figurinhas | musicas | geral | jogos',...sections,'Base Hiyuki • MisheruModz'].join('\n\n'))
+  return reply(['╔══ *BOT MOREIRA* ══╗','🟢 Online  •  Prefixo: '+prefix,'📂 '+prefix+'menu figurinhas | musicas | utilidades | geral | jogos',...sections,'Base Hiyuki • MisheruModz'].join('\n\n'))
  }
 }
