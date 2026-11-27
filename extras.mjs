@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import { randomInt } from 'node:crypto'
-import { jidNormalizedUser } from '@whiskeysockets/baileys'
+import * as baileys from '@whiskeysockets/baileys'
+const {jidNormalizedUser,normalizeMessageContent,getDevice}=baileys
 const file = new URL('./hiyuki/database/mutes.json', import.meta.url)
 const read = () => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {}
 const save = data => { const tmp = new URL(file.href+'.tmp'); fs.writeFileSync(tmp,JSON.stringify(data)); fs.renameSync(tmp,file) }
@@ -73,12 +74,40 @@ async function canonical(sock,id) {
   if (id.endsWith('@lid')) return norm(await sock.signalRepository?.lidMapping?.getPNForLID?.(id) || id)
   return id
 }
-const names = new Map()
-const authors = new Map()
-export function rememberName(m) {
-  const id=norm(m.key?.participant || m.key?.remoteJid)
-  if (m.key?.id && m.key?.remoteJid) { const k=m.key.remoteJid+'/'+m.key.id; authors.set(k,{id:m.key.fromMe?'self':id,name:m.pushName}); if(authors.size>3000) authors.delete(authors.keys().next().value) }
-  if (id && m.pushName && !m.key.fromMe) { names.set(id,m.pushName); if(names.size>3000) names.delete(names.keys().next().value) }
+const names=new Map(),authors=new Map()
+const cleanName=x=>typeof x==='string'&&!/^@?\d+(?:@.*)?$/.test(x.trim())?x.trim().replace(/[\r\n]/g,' ').slice(0,60):''
+function cacheName(id,name,priority=1){
+ id=norm(id);name=cleanName(name)
+ if(!id||!name||(names.get(id)?.priority||0)>priority)return
+ names.set(id,{name,priority})
+ if(names.size>10000)names.delete(names.keys().next().value)
+}
+export function rememberContacts(rows){
+ for(const c of rows||[])for(const id of [c.id,c.lid,c.phoneNumber])cacheName(id,c.name||c.notify||c.verifiedName,c.name?3:2)
+}
+export function rememberName(m){
+ const k=m.key||{},ids=[k.participant,k.participantAlt,...(!k.remoteJid?.endsWith('@g.us')&&!k.fromMe?[k.remoteJid,k.remoteJidAlt]:[])].filter(Boolean).map(norm)
+ if(!k.fromMe)for(const id of ids)cacheName(id,m.pushName)
+ if(k.id&&k.remoteJid){authors.set(k.remoteJid+'/'+k.id,{id:k.fromMe?'self':ids[0],name:cleanName(m.pushName),aliases:ids});if(authors.size>5000)authors.delete(authors.keys().next().value)}
+}
+function platform(id){
+ if(!id||typeof getDevice!=='function')return 'Não identificado'
+ try{return ({android:'Android',ios:'iOS / iPhone',web:'WhatsApp Web',desktop:'WhatsApp Desktop'})[getDevice(id)]||'Não identificado'}catch{return 'Não identificado'}
+}
+export async function resolveName(ctx,id,extra=[]){
+ const ids=await ownerIds(ctx.columbina,[id,...extra])
+ const member=(ctx.groupMembers||[]).find(m=>[m.id,m.lid,m.phoneNumber].some(x=>ids.has(norm(x))))
+ const cached=[...ids].map(x=>names.get(x)).filter(Boolean).sort((a,b)=>b.priority-a.priority)[0]
+ const self=[ctx.columbina.user?.id,ctx.columbina.user?.lid].some(x=>ids.has(norm(x)))
+ return cleanName(member?.name)||(cached?.priority===3?cached.name:'')||cleanName(member?.notify)||cached?.name||(self?cleanName(ctx.columbina.user?.name):'')||''
+}
+async function readableQuote(ctx,text,q){
+ const info=q?.extendedTextMessage?.contextInfo||q?.imageMessage?.contextInfo||q?.videoMessage?.contextInfo||{}
+ for(const id of info.mentionedJid||[]){
+  const name=await resolveName(ctx,id),raw=norm(id).split('@')[0]
+  if(/^\d+$/.test(raw))text=text.replace(new RegExp('@'+raw+'(?!\\d)','g'),()=>name?'@'+name:'@Contato')
+ }
+ return text.replace(/([*_~])(?=\S)(.+?)\1/g,'$2').replace(/@(\d{10,})(?!\d)/g,'@Contato')
 }
 export async function muted(sock,key,sender) {
   const data=read(), now=Date.now()
@@ -101,28 +130,25 @@ const xml = s=>String(s).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'').replace(/[&
 function wrap(s,width) {
   const rows=[]; for(const p of s.split(/\r?\n/)) { let line=''; for(const w of p.split(/\s+/)) { for(const part of (w.match(new RegExp('.{1,'+width+'}','gu')) || [''])) { if(line && [...line+' '+part].length>width) {rows.push(line); line=''} line+=(line?' ':'')+part } } rows.push(line) } return rows
 }
-export async function quotedAuthor(ctx) {
-  const c=context(ctx)
-  const cached=authors.get(ctx.from+'/'+c.stanzaId)
-  const id=norm(c.participant || (cached?.id==='self'?ctx.columbina.user?.id:cached?.id))
-  if(!id) return {id:'',name:'Autor desconhecido'}
-  const who=await canonical(ctx.columbina,id).catch(()=>id)
-  const member=(ctx.groupMembers||[]).find(m=>[m.id,m.lid,m.phoneNumber].some(j=>[id,who].includes(norm(j))))
-  const name=String(cached?.name||names.get(id)||names.get(who)||member?.notify||member?.name|| (norm(ctx.columbina.user?.id)===who ? ctx.columbina.user?.name : '') || 'Autor desconhecido').slice(0,60)
-  return {id,name}
+export async function quotedAuthor(ctx){
+ const c=context(ctx),cached=authors.get(ctx.from+'/'+c.stanzaId)
+ const id=norm(cached?.id==='self'?ctx.columbina.user?.id:c.participant||cached?.id||(!ctx.isGroup?ctx.from:''))
+ if(!id)return {id:'',name:'Autor desconhecido',device:platform(c.stanzaId)}
+ return {id,name:await resolveName(ctx,id,cached?.aliases||[])||cached?.name||'Autor desconhecido',device:platform(c.stanzaId)}
 }
-export async function quoteImage(ctx) {
-  const c=context(ctx), q=c.quotedMessage
-  const text=q?.conversation || q?.extendedTextMessage?.text || q?.imageMessage?.caption || q?.videoMessage?.caption
-  if(!text?.trim()) return ctx.reply('Responda a uma mensagem de texto com '+ctx.prefix+'quote.')
-  if([...text].length>700) return ctx.reply('Use uma mensagem de até 700 caracteres.')
-  const {id,name}=await quotedAuthor(ctx)
-  if(!id) return ctx.reply('Não consegui identificar o autor da mensagem.')
+export async function quoteImage(ctx){
+ const c=context(ctx),q=normalizeMessageContent?.(c.quotedMessage)||c.quotedMessage
+ const raw=q?.conversation||q?.extendedTextMessage?.text||q?.imageMessage?.caption||q?.videoMessage?.caption
+ if(!raw?.trim())return ctx.reply('Responda a uma mensagem de texto com '+ctx.prefix+'quote.')
+ if([...raw].length>700)return ctx.reply('Use uma mensagem de até 700 caracteres.')
+ const {id,name,device}=await quotedAuthor(ctx)
+ if(!id)return ctx.reply('Não consegui identificar o autor da mensagem.')
+ const text=await readableQuote(ctx,raw,q)
   const sharp=(await import('sharp')).default
   let avatar
   try { const url=await ctx.columbina.profilePictureUrl(id,'image'); if(url){const r=await fetch(url,{signal:AbortSignal.timeout(7000)}); if(r.ok){const bytes=Buffer.from(await r.arrayBuffer()); if(bytes.length<=5*1024*1024) avatar=await sharp(bytes,{limitInputPixels:20000000}).resize(176,176).composite([{input:Buffer.from('<svg width="176" height="176"><circle cx="88" cy="88" r="88" fill="white"/></svg>'),blend:'dest-in'}]).png().toBuffer()}} }catch{}
-  const x=avatar?260:64, width=avatar?26:34, rows=wrap(text,width), h=Math.max(360,rows.length*46+190)
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="960" height="${h}"><rect width="960" height="${h}" fill="#12141a"/><rect x="26" y="26" width="908" height="${h-52}" rx="24" fill="#1c2029"/><rect x="48" y="56" width="5" height="${h-112}" rx="2" fill="#a5b4fc"/><text x="${x}" y="108" fill="#a5b4fc" font-family="DejaVu Sans,Arial,sans-serif" font-size="58">“</text>${rows.map((r,i)=>`<text x="${x}" y="${148+i*46}" fill="#ffffff" font-family="DejaVu Sans,Arial,sans-serif" font-size="33">${xml(r)}</text>`).join('')}<text x="${x}" y="${h-65}" fill="#c5c9d5" font-family="DejaVu Sans,Arial,sans-serif" font-size="23">— ${xml(name)}</text></svg>`
+  const x=avatar?260:64, width=avatar?26:34, rows=wrap(text,width), h=Math.max(360,rows.length*46+250)
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="960" height="${h}"><rect width="960" height="${h}" fill="#12141a"/><rect x="26" y="26" width="908" height="${h-52}" rx="24" fill="#1c2029"/><rect x="48" y="56" width="5" height="${h-112}" rx="2" fill="#a5b4fc"/><text x="${x}" y="108" fill="#a5b4fc" font-family="DejaVu Sans,Arial,sans-serif" font-size="58">“</text>${rows.map((r,i)=>`<text x="${x}" y="${148+i*46}" fill="#ffffff" font-family="DejaVu Sans,Arial,sans-serif" font-size="33">${xml(r)}</text>`).join('')}<text x="${x}" y="${h-85}" fill="#c5c9d5" font-family="DejaVu Sans,Arial,sans-serif" font-size="23">— ${xml(name)}</text><text x="${x}" y="${h-52}" fill="#929bad" font-family="DejaVu Sans,Arial,sans-serif" font-size="19">${xml(device==="Não identificado"?"Dispositivo não identificado":"Plataforma estimada: "+device)}</text></svg>`
   let im=sharp(Buffer.from(svg)); if(avatar) im=im.composite([{input:avatar,left:64,top:Math.floor((h-176)/2)}]); await ctx.columbina.sendMessage(ctx.from,{image:await im.png().toBuffer()},{quoted:ctx.info})
 }
 export function registerExtras(manager) {
@@ -130,6 +156,12 @@ export function registerExtras(manager) {
   const list=[
     plugin('add','admin','Adiciona membro por número, menção ou resposta',async c=>{if(!c.isGroup||!admin(c))return c.reply('Somente administradores em grupos.'); if(!c.isBotAdm)return c.reply('O bot precisa ser administrador.');const id=await target(c); if(!id)return c.reply('Use '+c.prefix+'add 5511999999999 ou responda a uma mensagem.'); if(c.groupMembers.some(m=>[m.id,m.lid,m.phoneNumber].some(j=>norm(j)===id)))return c.reply('A pessoa já está no grupo.');try{const r=await c.columbina.groupParticipantsUpdate(c.from,[id],'add');return c.reply(String(r?.[0]?.status)==='200'?'Membro adicionado!':'Não foi possível adicionar. Verifique a privacidade e as permissões do WhatsApp.')}catch{return c.reply('Não foi possível adicionar esse membro.')}}),
     plugin('enquete','cmds-aleatorios','Cria enquete nativa do WhatsApp',async c=>{const [name,...values]=c.q.split('|').map(s=>s.trim()); if(!name||name.length>255||values.length<2||values.length>12||values.some(v=>!v||v.length>100)||new Set(values).size!==values.length)return c.reply('Use '+c.prefix+'enquete Pergunta | Opção 1 | Opção 2 (até 12 opções diferentes).');return c.columbina.sendMessage(c.from,{poll:{name,values,selectableCount:1}},{quoted:c.info})}),
+    plugin('device','cmds-aleatorios','Estima a plataforma de uma mensagem citada.',async c=>{
+      const q=context(c)
+      if(!q.stanzaId||!q.quotedMessage)return c.reply('Responda a uma mensagem com '+c.prefix+'device.')
+      const {name,device}=await quotedAuthor(c)
+      return c.reply('📱 *DISPOSITIVO DA MENSAGEM*\n\nAutor: '+name+'\nPlataforma estimada: '+device+'\n\nEstimativa pelo identificador da mensagem, não pelo modelo do aparelho.')
+    }),
     plugin('quote','cmds-aleatorios','Cria imagem de uma mensagem citada',quoteImage,['frase']),
     ...['mute','unmute','mutados'].map(action=>plugin(action,action==='mutados'?'admin':'dono',({mute:'Bloqueia comandos do bot',unmute:'Desbloqueia comandos',mutados:'Lista usuários bloqueados'})[action],async c=>{
       if(action!=='mutados'&&c.sender!==c.donoJid)return c.reply('Somente o dono principal pode bloquear ou desbloquear usuários.'); if(!admin(c))return c.reply('Comando exclusivo de administradores.'); const global=c.args.includes('global')||!c.isGroup; if(global&&!c.isDono)return c.reply('Só o dono pode bloquear globalmente.'); const scope=global?'global':c.from; const data=read(), entries=data[scope]||{};

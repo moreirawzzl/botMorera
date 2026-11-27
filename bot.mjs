@@ -1,6 +1,6 @@
 import moderacao from './hiyuki/arquivos/js/moderacao.js'
 import rankinggrupo from './hiyuki/arquivos/js/rankinggrupo.js'
-import { rememberName, temPermissaoDono } from './extras.mjs'
+import { rememberName, rememberContacts, temPermissaoDono } from './extras.mjs'
 import agenda from './hiyuki/arquivos/js/agenda.js'
 import * as Baileys from '@whiskeysockets/baileys'
 import { createHash, randomUUID } from 'node:crypto'
@@ -210,6 +210,8 @@ async function iniciar() {
   }
 
   sock.ev.on('creds.update', saveCreds)
+  sock.ev.on('contacts.upsert', rememberContacts)
+  sock.ev.on('contacts.update', rememberContacts)
 
   sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
     if (qr) qrcode.generate(qr, { small: true })
@@ -327,7 +329,7 @@ async function iniciar() {
     }
   }
   sock.ev.on('messages.upsert', ({ messages, type }) => receber(messages, false, type === 'notify').catch(e => console.log(e.message)))
-  sock.ev.on('messaging-history.set', ({ messages }) => receber(messages, true, false).catch(e => console.log(e.message)))
+  sock.ev.on('messaging-history.set', ({ messages, contacts }) => { rememberContacts(contacts); receber(messages, true, false).catch(e => console.log(e.message)) })
   sock.ev.on('group-participants.update', evento => responde(evento.id) && boasVindas(sock, evento).catch(e => console.log(e.message)))
 }
 
