@@ -8,7 +8,7 @@ const labels = {
 }
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
 const musicas = new Set(['play','mp4','spotify','letra'])
-const utilidades = new Set(['cep','cotacao','clima','lembrete','traduzir','qrcode','pdf','zip','extrairpdf','lerqrcode','traduziraudio','resumiraudio','pesquisar','transcrever','resumo','noticias','dicionario','ddd','versao'])
+const utilidades = new Set(['ping','cep','cotacao','clima','lembrete','traduzir','qrcode','pdf','zip','extrairpdf','lerqrcode','traduziraudio','resumiraudio','pesquisar','transcrever','resumo','noticias','dicionario','ddd','versao'])
 const jogos = new Set(['apostarauravelha','velha','ranking','pontos','jogodavelha','addpontos','tirarpontos','corno','rankcorno'])
 const ordem = Object.keys(labels)
 const descriptions = {
