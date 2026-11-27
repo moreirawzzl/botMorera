@@ -33,6 +33,12 @@ function addAura(groupId,id,amount){
  if(!Number.isSafeInteger(p.score+amount))return {error:'Limite de saldo atingido.'}
  p.score+=amount;save(d);return {score:p.score,amount}
 }
+function removeAura(groupId,id,amount){
+ if(!Number.isSafeInteger(amount)||amount<1||amount>1000000)return {error:'Informe de 1 a 1.000.000 aura.'}
+ const d=read(),g=group(d,groupId),p=player(g,id)
+ if(p.score<amount)return {error:'Saldo insuficiente. Saldo atual: '+p.score.toLocaleString('pt-BR')+' aura.'}
+ p.score-=amount;save(d);return {score:p.score,amount}
+}
 function distribute(groupId,id,ids){
  const recipients=[...new Set(ids)].filter(x=>x!==id)
  if(!recipients.length)return {error:'Não há outros membros para receber aura.'}
@@ -84,4 +90,4 @@ function gamePrize(groupId,id,key){
  if(!Number.isSafeInteger(p.score+100))return {error:'Limite de saldo atingido.'}
  p.score+=100;prizes[key]={id,score:p.score};save(d);return {ok:true,score:p.score}
 }
-module.exports={ranking,steal,roll,addAura,distribute,reserveVelha,finishVelha,daily,gamePrize}
+module.exports={ranking,steal,roll,addAura,removeAura,distribute,reserveVelha,finishVelha,daily,gamePrize}
