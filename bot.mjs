@@ -1,3 +1,4 @@
+import './runtime-info.mjs'
 import moderacao from './hiyuki/arquivos/js/moderacao.js'
 import rankinggrupo from './hiyuki/arquivos/js/rankinggrupo.js'
 import { rememberName, rememberContacts, temPermissaoDono } from './extras.mjs'

@@ -1,3 +1,4 @@
+import './runtime-info.mjs'
 import {spawn,execFile} from 'node:child_process'
 import {promisify} from 'node:util'
 import {fileURLToPath} from 'node:url'
