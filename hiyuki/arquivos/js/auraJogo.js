@@ -27,4 +27,23 @@ function roll(groupId,id,now=Date.now(),requestId){
  p.score+=success?amount:-amount
  p.lastAura=now;p.lastAuraRequest=requestId;save(d);return {success,amount,score:p.score,next:now+cooldown}
 }
-module.exports={ranking,steal,roll}
+function addAura(groupId,id,amount){
+ if(!Number.isSafeInteger(amount)||amount<1||amount>1000000)return {error:'Informe de 1 a 1.000.000 aura.'}
+ const d=read(),g=group(d,groupId),p=player(g,id)
+ if(!Number.isSafeInteger(p.score+amount))return {error:'Limite de saldo atingido.'}
+ p.score+=amount;save(d);return {score:p.score,amount}
+}
+function distribute(groupId,id,ids){
+ const recipients=[...new Set(ids)].filter(x=>x!==id)
+ if(!recipients.length)return {error:'Não há outros membros para receber aura.'}
+ const d=read(),g=group(d,groupId),p=player(g,id),total=p.score
+ if(!Number.isSafeInteger(total)||total<=0)return {error:'Essa pessoa está sem aura para distribuir.'}
+ const each=Math.floor(total/recipients.length),remainder=total%recipients.length
+ // Shuffle so any indivisible remainder is assigned fairly.
+ for(let i=recipients.length-1;i>0;i--){const j=randomInt(i+1);[recipients[i],recipients[j]]=[recipients[j],recipients[i]]}
+ const transfers=recipients.map((target,i)=>({target,amount:each+(i<remainder?1:0),p:player(g,target)}))
+ if(transfers.some(x=>!Number.isSafeInteger(x.p.score+x.amount)))return {error:'Limite de saldo atingido.'}
+ for(const x of transfers)x.p.score+=x.amount
+ p.score=0;save(d);return {total,each,remainder,count:recipients.length,paid:transfers.filter(x=>x.amount>0).length}
+}
+module.exports={ranking,steal,roll,addAura,distribute}
