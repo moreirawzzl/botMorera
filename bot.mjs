@@ -53,7 +53,7 @@ function sessaoDoGrupo(jid) {
     return 'moreira'
   }
 }
-const responde = jid => Boolean(papel && papel === sessaoDoGrupo(jid))
+const responde = jid => Boolean(papel) && (!jid?.endsWith('@g.us') || papel === sessaoDoGrupo(jid))
 function selecionar(jid,nome) {
   fs.mkdirSync(controleGrupos,{recursive:true})
   const file = arquivoControleGrupo(jid)
@@ -266,7 +266,7 @@ async function iniciar() {
         if(!m.key.fromMe && !(await temPermissaoDono(sender,donoPrincipal,sock,m.key)))continue
         const nome=troca[1].toLowerCase()
         if(!jid?.endsWith('@g.us')){
-          if(responde(jid))await sock.sendMessage(jid,{text:'Use .andrade ou .moreira dentro do grupo que deseja configurar.'},{quoted:m})
+          if(papel==='moreira')await sock.sendMessage(jid,{text:'Use .andrade ou .moreira dentro do grupo que deseja configurar.'},{quoted:m})
           continue
         }
         selecionar(jid,nome)
