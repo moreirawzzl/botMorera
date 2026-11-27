@@ -1,4 +1,6 @@
 const fs = require('node:fs')
+const aura = require('./auraJogo')
+const {members,match,quotedMentions} = require('./resenhaMembros')
 const path = require('node:path')
 const arquivo = path.join(__dirname, '../../database/jogo-da-velha.json')
 const linhas = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
@@ -26,11 +28,24 @@ function tabuleiro(jogo) {
 async function executar(ctx, acao, destino = arquivo) {
   const {from, prefix, args, info, columbina, reply} = ctx
   let sender = normalizar(ctx.sender)
+  const aposta = acao === 'apostarauravelha'
+  if (aposta) acao = 'velha'
   const op = (args[0] || '').toLowerCase()
   let alvo = normalizar(info.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0])
   if (!alvo && ['addpontos','tirarpontos','pontos'].includes(acao)) alvo = normalizar(info.message?.extendedTextMessage?.contextInfo?.participant)
   if (acao === 'velha' && (op === 'aceitar' || op === 'cancelar' || /^[1-9]$/.test(op))) alvo = undefined
-  if (alvo?.endsWith('@lid')) alvo = await columbina.signalRepository?.lidMapping?.getPNForLID(alvo) || alvo
+  let apostaDados
+  if(aposta){
+    if(!ctx.isGroup)return reply('Faça o desafio em um grupo.')
+    const marked=await quotedMentions(ctx),values=args.filter(x=>/^\d+$/.test(x))
+    const amount=Number(values[0])
+    if(marked.length!==1||values.length!==1||!Number.isSafeInteger(amount)||amount<1||amount>1000000)return reply('Use '+prefix+'apostarauravelha 1000 @jogador (1 a 1.000.000 aura).')
+    const rows=await members(ctx),a=await match(ctx,rows,ctx.sender),b=await match(ctx,rows,marked[0])
+    if(!a||!b||a.id===b.id)return reply('Escolha outro membro do grupo.')
+    apostaDados={ids:[a.id,b.id],amount}
+    alvo=b.id
+  }
+  if (!aposta && alvo?.endsWith('@lid')) alvo = await columbina.signalRepository?.lidMapping?.getPNForLID(alvo) || alvo
   alvo = normalizar(alvo)
   const ids = acao === 'velha' ? await identidades(ctx) : new Set([sender])
   const ler = () => fs.existsSync(destino) ? JSON.parse(fs.readFileSync(destino,'utf8')) : { jogos:{}, pontos:{}, feitos:{} }
@@ -84,6 +99,14 @@ async function executar(ctx, acao, destino = arquivo) {
     if (jogo) return enviar(tabuleiro(jogo)+'\n'+(jogo.aceito?'Vez de '+nomes(jogo.jogadores[jogo.turno]):nomes(jogo.jogadores[1])+', envie '+prefix+'velha aceitar.'),jogo.jogadores)
     return reply('Desafie alguém com '+prefix+'velha @jogador. Vitória vale 3 pontos e empate vale 1 para cada.')
   }
+  if (aposta) {
+    if(jogo)return reply('Já existe uma partida ou convite aqui. Use '+prefix+'velha para consultar.')
+    const {ids:players,amount}=apostaDados
+    if(aura.ranking(from,players).some(p=>p.score<amount))return reply('Os dois jogadores precisam ter pelo menos '+amount+' aura.')
+    estado.jogos[from]={jogadores:players,casas:Array(9).fill(null),turno:0,aceito:false,aposta:{key:chave,amount}}
+    salvar()
+    return enviar('⚔️ *JOGO DA VELHA VALENDO AURA*\n\n'+nomes(players[0])+' desafiou '+nomes(players[1])+'!\nAposta: '+amount+' aura de cada jogador.\nPrêmio total: '+(amount*2)+' aura.\n\n'+nomes(players[1])+', use '+prefix+'velha aceitar ou '+prefix+'velha cancelar.',players)
+  }
   if (alvo) {
     if (!ctx.isGroup) return reply('Faça o desafio em um grupo.')
     if (ids.has(alvo) || [columbina.user.id,columbina.user.lid].map(normalizar).includes(alvo)) return reply('Escolha outro jogador.')
@@ -96,12 +119,21 @@ async function executar(ctx, acao, destino = arquivo) {
   const jogadores = jogo.jogadores
   if (!jogadores.includes(sender) && !(op === 'cancelar' && ctx.isDono)) return reply('Essa partida é de outros jogadores.')
   if (op === 'cancelar') {
+    if(jogo.aposta){
+      if(jogo.aceito&&!ctx.isDono)return reply('A aposta já começou. Apenas o dono pode cancelar e devolver os valores.')
+      const r=aura.finishVelha(from,jogo.aposta.key,null)
+      if(r.error)return reply(r.error)
+    }
     delete estado.jogos[from]
     salvar()
-    return reply('Partida cancelada sem pontos.')
+    return reply(jogo.aposta?'Partida cancelada. Aura reservada devolvida.':'Partida cancelada sem pontos.')
   }
   if (!jogo.aceito) {
     if (op !== 'aceitar' || sender !== jogadores[1]) return reply('Aguardando o jogador desafiado enviar '+prefix+'velha aceitar.')
+    if(jogo.aposta){
+      const r=aura.reserveVelha(from,jogo.aposta.key,jogadores,jogo.aposta.amount)
+      if(r.error)return reply(r.error)
+    }
     jogo.aceito = true
     salvar()
     return enviar(tabuleiro(jogo)+'\n'+nomes(jogadores[0])+' joga com X. Escolha uma casa, por exemplo '+prefix+'velha 5.',jogadores)
@@ -115,8 +147,13 @@ async function executar(ctx, acao, destino = arquivo) {
   const venceu = linhas.some(l=>l.every(i=>jogo.casas[i]===simbolo))
   let resultado
   if (venceu || jogo.casas.every(Boolean)) {
+    if(jogo.aposta){
+      const r=aura.finishVelha(from,jogo.aposta.key,venceu?sender:null)
+      if(r.error)return reply(r.error)
+    }
     for (const id of jogadores) estado.pontos[id] = (estado.pontos[id] || 0)+(venceu ? (id===sender ? 3 : 0) : 1)
     resultado = venceu ? nomes(sender)+' venceu! +3 pontos.' : 'Empate! +1 ponto para cada.'
+    if(jogo.aposta)resultado+='\n'+(venceu?'💰 Prêmio: '+(jogo.aposta.amount*2)+' aura (lucro de '+jogo.aposta.amount+').':'💰 Apostas devolvidas integralmente.')
     delete estado.jogos[from]
   } else {
     jogo.turno = 1-jogo.turno

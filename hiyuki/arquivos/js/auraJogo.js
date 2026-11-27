@@ -46,4 +46,24 @@ function distribute(groupId,id,ids){
  for(const x of transfers)x.p.score+=x.amount
  p.score=0;save(d);return {total,each,remainder,count:recipients.length,paid:transfers.filter(x=>x.amount>0).length}
 }
-module.exports={ranking,steal,roll,addAura,distribute}
+function reserveVelha(groupId,key,ids,amount){
+ if(ids.length!==2||ids[0]===ids[1]||!Number.isSafeInteger(amount)||amount<1||amount>1000000)return {error:'Aposta inválida.'}
+ const d=read(),g=group(d,groupId),bets=g.velhaBets||(g.velhaBets={})
+ if(bets[key])return bets[key].status==='reserved'?{ok:true}:{error:'Aposta já encerrada.'}
+ const ps=ids.map(id=>player(g,id))
+ if(ps.some(p=>p.score<amount))return {error:'Os dois jogadores precisam ter aura suficiente.'}
+ for(const p of ps)p.score-=amount
+ bets[key]={ids,amount,status:'reserved'}
+ save(d);return {ok:true}
+}
+function finishVelha(groupId,key,winner){
+ const d=read(),g=group(d,groupId),bet=g.velhaBets?.[key]
+ if(!bet)return {ok:true}
+ if(bet.status==='settled')return {ok:true}
+ if(winner&&!bet.ids.includes(winner))return {error:'Vencedor inválido.'}
+ const credits=winner?[[winner,bet.amount*2]]:bet.ids.map(id=>[id,bet.amount])
+ if(credits.some(([id,n])=>!Number.isSafeInteger(player(g,id).score+n)))return {error:'Limite de saldo atingido; contate o dono.'}
+ for(const [id,n] of credits)player(g,id).score+=n
+ bet.status='settled';bet.winner=winner||null;save(d);return {ok:true}
+}
+module.exports={ranking,steal,roll,addAura,distribute,reserveVelha,finishVelha}
