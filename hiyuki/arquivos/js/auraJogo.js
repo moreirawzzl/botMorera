@@ -10,12 +10,12 @@ function steal(groupId,attacker,target,now=Date.now()){
  if(attacker===target)return {error:'Você não pode roubar sua própria aura.'}
  const d=read(),g=group(d,groupId),a=player(g,attacker),b=player(g,target)
  const wait=a.last+cooldown-now
- if(wait>0)return {error:'Espere '+Math.ceil(wait/1000)+' segundos para tentar novamente.'}
+ if(wait>0)return {error:'cooldown',next:a.last+cooldown}
  if(b.score<=0)return {error:'Esse jogador está sem aura.'}
  const success=randomInt(100)<65
  const amount=success?Math.min(b.score,randomInt(100,501)):Math.min(a.score,randomInt(50,201))
  if(success){a.score+=amount;b.score-=amount}else{a.score-=amount;b.score+=amount}
- a.last=now;save(d);return {success,amount,attacker:a.score,target:b.score}
+ a.last=now;save(d);return {success,amount,attacker:a.score,target:b.score,next:a.last+cooldown}
 }
 function roll(groupId,id,now=Date.now(),requestId){
  const format=ms=>{const sec=Math.max(0,Math.ceil(ms/1000));return Math.floor(sec/60)+'min '+String(sec%60).padStart(2,'0')+'s'}
