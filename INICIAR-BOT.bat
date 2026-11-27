@@ -74,7 +74,7 @@ for /L %%i in (1,1,90) do (
 echo AVISO: Tradutor ainda nao respondeu. O bot iniciara mesmo assim.
 :runbot
 echo Iniciando BOT Moreira...
-node "%~dp0bot.mjs"
+node "%~dp0supervisor.mjs"
 echo.
 echo O bot foi encerrado. Codigo: %errorlevel%
 pause
