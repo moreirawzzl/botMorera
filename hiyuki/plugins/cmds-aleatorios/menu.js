@@ -1,16 +1,20 @@
+const fs=require('node:fs')
+const path=require('node:path')
+const mascoteMenu=fs.readFileSync(path.join(__dirname,'mascote-menu-spfc.png'))
 const labels = {
  utilidades:'🧰 UTILIDADES', musicas:'🎵 MÚSICAS', fig:'🖼️ FIGURINHAS', jogos:'🎮 JOGOS E PONTOS', geral:'📌 COMANDOS GERAIS',
  admin:'🛡️ ADMINISTRAÇÃO', dono:'👑 DONO', resenha:'😂 RESENHA', premium:'💎 PREMIUM',
  downloads:'📥 DOWNLOADS', efeitos:'✨ EFEITOS', midias:'📷 MÍDIAS', rpg:'⚔️ RPG', menu:'📋 OUTROS MENUS'
 }
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
-const musicas = new Set(['play','spotify','letra'])
+const musicas = new Set(['play','mp4','spotify','letra'])
 const utilidades = new Set(['cep','cotacao','clima','lembrete','traduzir','qrcode'])
 const jogos = new Set(['apostarauravelha','velha','ranking','pontos','jogodavelha','addpontos','tirarpontos','corno','rankcorno'])
 const ordem = Object.keys(labels)
 const descriptions = {
   ping:'Mede o tempo de resposta, recorde, média e memória do bot.',
   play:'Pesquisa cinco vídeos por nome ou link. Use .play nome/mp3 ou nome/mp4; escolha pelo número.',
+  mp4:'Pesquisa um vídeo por nome ou link e envia o arquivo MP4 quando permitido; escolha pelo número.',
   spotify:'Pesquisa até cinco faixas e envia link e prévia quando disponível. Ex.: .spotify nome da música',
   limparmusicas:'Limpa pesquisas e arquivos locais de músicas.',
   "info": "Mostra informações do bot.",
@@ -85,6 +89,10 @@ module.exports = {
    if(commands.some(c=>c.name==='figfrase')) lines.push('│   branco • preto • neon • gold','│   vidro • transparente • piscar','│   arcoiris • glitch • neon animado')
    sections.push('╭─ *'+(labels[cat]||cat.toUpperCase())+'*\n'+lines.join('\n')+'\n╰────────────')
   }
-  return reply(['╔══ *BOT PANELEIRO* ══╗','🟢 Online  •  Prefixo: '+prefix,'📂 '+prefix+'menu figurinhas | musicas | utilidades | geral | jogos',...sections,'Base Hiyuki • MisheruModz'].join('\n\n'))
+  await ctx.columbina.sendMessage(ctx.from,{
+   image:mascoteMenu,
+   caption:'🔴⚪⚫ *BOT PANELEIRO*\n🟢 Online  •  Prefixo: '+prefix
+  },{quoted:ctx.info})
+  return reply(['📂 '+prefix+'menu figurinhas | musicas | utilidades | geral | jogos',...sections,'Base Hiyuki • MisheruModz'].join('\n\n'))
  }
 }

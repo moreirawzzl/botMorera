@@ -1,0 +1,1 @@
+module.exports={name:'mp4',description:'Pesquisa música por nome ou link e envia o vídeo MP4 quando permitido.',execute:ctx=>require('../../arquivos/js/musicas.js').execute(ctx,'youtube',{command:'mp4',format:'mp4'})}

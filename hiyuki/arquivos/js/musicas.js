@@ -8,6 +8,14 @@ const cache=path.resolve(__dirname,'../../database/musicas')
 const sessions=new Map()
 const ttl=5*60*1000
 let token, tokenUntil=0
+function ytdlp(){
+ if(process.env.YTDLP_PATH)return process.env.YTDLP_PATH
+ if(process.platform==='win32'&&process.env.LOCALAPPDATA){
+  const winget=path.join(process.env.LOCALAPPDATA,'Microsoft','WinGet','Packages','yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe','yt-dlp.exe')
+  if(fs.existsSync(winget))return winget
+ }
+ return 'yt-dlp'
+}
 async function json(url,options={}) {
  const r=await fetch(url,{...options,signal:AbortSignal.timeout(15000)})
  if(!r.ok) throw Error('Serviço retornou HTTP '+r.status)
@@ -46,7 +54,7 @@ async function youtube(q){
  if(!key){
   if(id&&!/^[\w-]{11}$/.test(id))throw Error('Link inválido.')
   const target=id?'https://www.youtube.com/watch?v='+id:'ytsearch5:'+q.slice(0,250)
-  const {stdout}=await run(process.env.YTDLP_PATH||'yt-dlp',['--ignore-config','--no-playlist','--flat-playlist','--dump-json','--skip-download','--',target],{timeout:45000,maxBuffer:4*1024*1024,windowsHide:true})
+  const {stdout}=await run(ytdlp(),['--ignore-config','--no-playlist','--flat-playlist','--dump-json','--skip-download','--',target],{timeout:45000,maxBuffer:4*1024*1024,windowsHide:true})
   return stdout.trim().split('\n').filter(Boolean).slice(0,5).map(line=>JSON.parse(line)).filter(x=>/^[\w-]{11}$/.test(x.id)).map(x=>({title:x.title||'Vídeo do YouTube',url:'https://www.youtube.com/watch?v='+x.id,service:'youtube'}))
  }
  const base='https://www.googleapis.com/youtube/v3/'
@@ -69,7 +77,7 @@ async function downloadYouTube(ctx,item){
  activeDownloads++
  let dir
  try {
-  const executable=process.env.YTDLP_PATH||'yt-dlp'
+  const executable=ytdlp()
   const url='https://www.youtube.com/watch?v='+id
   const opts={timeout:60000,maxBuffer:8*1024*1024,windowsHide:true}
   const {stdout}=await run(executable,['--ignore-config','--no-playlist','--skip-download','--dump-single-json','--',url],opts)
@@ -103,13 +111,13 @@ async function deliver(ctx,item){
  try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.length;if(total>5*1024*1024){await reader.cancel();return}chunks.push(Buffer.from(value))}}finally{reader.releaseLock()}
  await ctx.columbina.sendMessage(ctx.from,{audio:Buffer.concat(chunks),mimetype:'audio/mpeg'},{quoted:ctx.info})
 }
-async function execute(ctx,service){
- const command=service==='youtube'?'play':service
+async function execute(ctx,service,options={}){
+ const command=options.command||(service==='youtube'?'play':service)
  let q=ctx.q?.trim()
- let format='mp3'
+ let format=options.format||'mp3'
  if(service==='youtube'&&q){const m=q.match(/(?:\/|\.)(mp3|mp4|audio|video)$/i);if(m){format=/mp4|video/i.test(m[1])?'mp4':'mp3';q=q.slice(0,-m[0].length).trim()}}
  if(!q)return ctx.reply('Use '+ctx.prefix+command+' nome da música ou link.')
- const owner=ctx.from+'|'+ctx.sender+'|'+service
+ const owner=ctx.from+'|'+ctx.sender+'|'+service+'|'+command
  const now=Date.now()
  for(const [k,v] of sessions)if(v.until<now)sessions.delete(k)
  try{
