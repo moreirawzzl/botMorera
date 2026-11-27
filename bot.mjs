@@ -3,6 +3,7 @@ import rankinggrupo from './hiyuki/arquivos/js/rankinggrupo.js'
 import { rememberName, temPermissaoDono } from './extras.mjs'
 import agenda from './hiyuki/arquivos/js/agenda.js'
 import * as Baileys from '@whiskeysockets/baileys'
+import { createHash, randomUUID } from 'node:crypto'
 import qrcode from 'qrcode-terminal'
 import { boasVindas, comandoBase, nomeBot, podeUsar, prefixo } from './paneleiro.mjs'
 import pino from 'pino'
@@ -36,18 +37,31 @@ const arquivo = path.join(pastaAuth, 'pedidos-figaudio.json')
 const registro = fs.existsSync(arquivo)
   ? JSON.parse(fs.readFileSync(arquivo, 'utf8'))
   : { desde: Math.floor(Date.now() / 1000), pedidos: {} }
-const controle = path.join(pastaSessao, 'controle-respostas.json')
 const donoPrincipal = JSON.parse(fs.readFileSync(new URL('./hiyuki/database/config.json',import.meta.url),'utf8').replace(/^\uFEFF/, '')).NumeroDoDono + '@s.whatsapp.net'
-let selecionado = fs.existsSync(controle) ? JSON.parse(fs.readFileSync(controle,'utf8')).selecionado : 'moreira'
+const controleGrupos = path.join(pastaAuth,'controle-respostas')
 let ativo, papel
-const responde = () => Boolean(papel && papel === selecionado)
-function selecionar(nome) {
-  fs.mkdirSync(pastaSessao,{recursive:true})
-  fs.writeFileSync(controle+'.tmp',JSON.stringify({selecionado:nome}))
-  fs.renameSync(controle+'.tmp',controle)
-  selecionado=nome
+function arquivoControleGrupo(jid) {
+  const id = createHash('sha256').update(jid).digest('hex')
+  return path.join(controleGrupos,id+'.json')
 }
-setInterval(() => responde() && agenda.entregar(ativo).catch(e => console.log("Agenda:",e.message)), 15000).unref()
+function sessaoDoGrupo(jid) {
+  if (!jid?.endsWith('@g.us')) return 'moreira'
+  try {
+    return JSON.parse(fs.readFileSync(arquivoControleGrupo(jid),'utf8')).selecionado === 'andrade' ? 'andrade' : 'moreira'
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.error('Controle de sessão:',e.message)
+    return 'moreira'
+  }
+}
+const responde = jid => Boolean(papel && papel === sessaoDoGrupo(jid))
+function selecionar(jid,nome) {
+  fs.mkdirSync(controleGrupos,{recursive:true})
+  const file = arquivoControleGrupo(jid)
+  const tmp = file+'.'+process.pid+'.'+randomUUID()+'.tmp'
+  fs.writeFileSync(tmp,JSON.stringify({selecionado:nome}))
+  fs.renameSync(tmp,file)
+}
+setInterval(() => agenda.entregar(ativo).catch(e => console.log("Agenda:",e.message)), 15000).unref()
 let fila = Promise.resolve()
 let ffmpegDisponivel = await verificarFfmpeg()
 
@@ -151,16 +165,16 @@ async function iniciar() {
   let conectadoEm
   const sendOriginal = sock.sendMessage.bind(sock)
   const relayOriginal = sock.relayMessage.bind(sock)
-  // Keep the connection alive, but block outgoing bot replies when inactive.
-  sock.sendMessage = (...args) => responde() ? sendOriginal(...args) : Promise.reject(Error('Sessao em silencio'))
-  sock.relayMessage = (...args) => responde() ? relayOriginal(...args) : Promise.reject(Error('Sessao em silencio'))
+  // Keep both connections alive, but allow replies only from the session assigned to each group.
+  sock.sendMessage = (...args) => responde(args[0]) ? sendOriginal(...args) : Promise.reject(Error('Sessao em silencio neste grupo'))
+  sock.relayMessage = (...args) => responde(args[0]) ? relayOriginal(...args) : Promise.reject(Error('Sessao em silencio neste grupo'))
   salvar()
 
   function enfileirar(chave) {
     fila = fila.then(async () => {
       const pedido = registro.pedidos[chave]
-      if (!pedido || ativo !== sock || !responde()) return
-      const vigente = () => responde() && ativo === sock && registro.pedidos[chave] === pedido
+      if (!pedido || ativo !== sock || !responde(pedido.jid)) return
+      const vigente = () => responde(pedido.jid) && ativo === sock && registro.pedidos[chave] === pedido
       const solicitacao = pedido.solicitacao ? Baileys.proto.WebMessageInfo.decode(Buffer.from(pedido.solicitacao, 'base64')) : undefined
       if (pedido.video) {
         if (!ffmpegDisponivel) {
@@ -208,7 +222,7 @@ async function iniciar() {
       ativo = sock
       const id = Baileys.jidNormalizedUser(sock.user.id)
       papel = id === donoPrincipal ? 'moreira' : 'andrade'
-      console.log('Sessao:',papel,'| respostas:',responde()?'ATIVAS':'DESATIVADAS')
+      console.log('Sessao:',papel,'| roteamento por grupo ativado')
       for (const [chave, pedido] of Object.entries(registro.pedidos)) {
         if (pedido) enfileirar(chave)
       }
@@ -251,15 +265,19 @@ async function iniciar() {
         const sender=ids.filter(Boolean).map(Baileys.jidNormalizedUser).find(x=>x.endsWith('@s.whatsapp.net'))||ids.filter(Boolean).map(Baileys.jidNormalizedUser)[0]||''
         if(!m.key.fromMe && !(await temPermissaoDono(sender,donoPrincipal,sock,m.key)))continue
         const nome=troca[1].toLowerCase()
-        selecionar(nome)
-        console.log('Sessao selecionada:',nome,'| local:',papel)
-        if(responde()){
-          await sock.sendMessage(jid,{text:'✅ Sessão '+nome.toUpperCase()+' ativa. A outra sessão deve permanecer em silêncio.'},{quoted:m})
-          for(const [chave,pedido] of Object.entries(registro.pedidos))if(pedido)enfileirar(chave)
+        if(!jid?.endsWith('@g.us')){
+          if(responde(jid))await sock.sendMessage(jid,{text:'Use .andrade ou .moreira dentro do grupo que deseja configurar.'},{quoted:m})
+          continue
+        }
+        selecionar(jid,nome)
+        console.log('Sessao selecionada:',nome,'| grupo:',jid,'| local:',papel)
+        if(responde(jid)){
+          await sock.sendMessage(jid,{text:'✅ Sessão '+nome.toUpperCase()+' selecionada neste grupo.'},{quoted:m})
+          for(const [chave,pedido] of Object.entries(registro.pedidos))if(pedido&&pedido.jid===jid)enfileirar(chave)
         }
         continue
       }
-      if(!responde())continue
+      if(!responde(jid))continue
       if (aoVivo && jid?.endsWith('@g.us')) {
         const removida = await moderacao.inspect(sock,m,comando).catch(e=>{console.error('Moderacao:',e.message);return false})
         if (removida) continue
@@ -310,7 +328,7 @@ async function iniciar() {
   }
   sock.ev.on('messages.upsert', ({ messages, type }) => receber(messages, false, type === 'notify').catch(e => console.log(e.message)))
   sock.ev.on('messaging-history.set', ({ messages }) => receber(messages, true, false).catch(e => console.log(e.message)))
-  sock.ev.on('group-participants.update', evento => responde() && boasVindas(sock, evento).catch(e => console.log(e.message)))
+  sock.ev.on('group-participants.update', evento => responde(evento.id) && boasVindas(sock, evento).catch(e => console.log(e.message)))
 }
 
 if (!ffmpegDisponivel) {
