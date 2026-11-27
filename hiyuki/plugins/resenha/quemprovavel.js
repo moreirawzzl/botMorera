@@ -1,2 +1,16 @@
-const {randomInt}=require('node:crypto');
-module.exports={name:"quemprovavel",description:"Sorteia quem é mais provável de fazer algo.",aliases:[],async execute(c){if(!c.isGroup||!c.q)return c.reply('Use em grupo: '+c.prefix+'quemprovavel esquecer o aniversário');const meta=await c.columbina.groupMetadata(c.from);const ids=meta.participants.map(m=>m.id).filter(id=>id&&id!==c.botNumber);if(!ids.length)return c.reply('Sem participantes.');const id=ids[randomInt(ids.length)];return c.columbina.sendMessage(c.from,{text:'🔮 Quem é mais provável de '+c.q.slice(0,200)+'?\n@'+id.split('@')[0]+'\n_Aleatório, só brincadeira._',mentions:[id]},{quoted:c.info})}}
+const {randomInt}=require('node:crypto')
+const {members,match,quotedMentions,tag}=require('../../arquivos/js/resenhaMembros')
+module.exports={name:'quemprovavel',aliases:['quemprovável'],description:'Sorteia entre os marcados ou todo o grupo. Ex.: .quemprovavel chegar atrasado @pessoa @pessoa',async execute(c){
+ if(!c.isGroup||!c.q)return c.reply('Use em grupo: '+c.prefix+'quemprovavel esquecer o aniversário @pessoa @pessoa')
+ const rows=await members(c),marked=await quotedMentions(c)
+ const found=await Promise.all(marked.map(id=>match(c,rows,id)))
+ const candidates=marked.length?[...new Map(found.filter(Boolean).map(p=>[p.id,p])).values()]:rows
+ if(marked.length&&found.some(p=>!p))return c.reply('Não consegui identificar todos os participantes marcados. Marque membros atuais do grupo.')
+ if(candidates.length<2)return c.reply('Marque pelo menos duas pessoas ou deixe sem menções para sortear o grupo.')
+ const winner=candidates[randomInt(candidates.length)]
+ // Remove the selection tokens from the question, and display candidates with real mentions.
+ const question=c.q.replace(/@\d+(?=\D|$)/g,'').replace(/\s+ou\s*$/i,'').replace(/\s+/g,' ').trim().slice(0,220)
+ const chosen=marked.length?'Entre: '+candidates.map(p=>tag(p.id)).join(' ou ')+'\n':''
+ const text='🔮 *QUEM É MAIS PROVÁVEL?*\n\n'+(question||'Escolha aleatória')+'?\n'+chosen+'\nResultado: '+tag(winner.id)+'\n\n_Aleatório, só brincadeira._'
+ return c.columbina.sendMessage(c.from,{text,mentions:[...new Set([winner.id,...(marked.length?candidates.map(p=>p.id):[])])]},{quoted:c.info})
+}}
