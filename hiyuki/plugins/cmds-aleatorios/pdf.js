@@ -1,0 +1,1 @@
+module.exports={name:"pdf",description:"Converte imagem marcada em PDF.",execute:c=>require('../../arquivos/js/arquivosProdutivos').execute(c,"pdf")}

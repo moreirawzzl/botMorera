@@ -1,0 +1,1 @@
+module.exports={name:"extrairpdf",description:"Extrai texto de até 30 páginas de PDF marcado.",execute:c=>require('../../arquivos/js/arquivosProdutivos').execute(c,"extrairpdf")}

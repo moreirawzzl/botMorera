@@ -1,0 +1,1 @@
+module.exports={name:'traduziraudio',description:'Traduz áudio marcado com Whisper e LibreTranslate. .traduziraudio pt en',execute:c=>require('./transcrever').execute(c,'traduziraudio')}

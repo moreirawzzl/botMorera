@@ -1,0 +1,1 @@
+module.exports={name:"zip",description:"Compacta um arquivo marcado em ZIP.",execute:c=>require('../../arquivos/js/arquivosProdutivos').execute(c,"zip")}

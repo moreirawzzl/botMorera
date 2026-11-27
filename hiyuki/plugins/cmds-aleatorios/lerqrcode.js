@@ -1,0 +1,1 @@
+module.exports={name:"lerqrcode",description:"Lê QR Code de imagem ou figurinha marcada.",execute:c=>require('../../arquivos/js/arquivosProdutivos').execute(c,"lerqrcode")}

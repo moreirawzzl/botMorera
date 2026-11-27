@@ -1,0 +1,1 @@
+module.exports={name:'resumiraudio',description:'Resume áudio marcado de até 5 minutos, usando Whisper.',execute:c=>require('./transcrever').execute(c,'resumiraudio')}
