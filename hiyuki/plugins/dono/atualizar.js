@@ -26,6 +26,10 @@ module.exports={name:'atualizar',aliases:['pull','push'],description:'Busca a ma
    process.send({type:'bot-update',id},e=>{if(e){done();reject(e)}})
   })
   if(result.error)return c.reply(result.error)
+  if(!result.updated){
+   if(result.ahead)return c.reply('✅ A versão remota já está incluída nesta cópia do bot. Há '+result.ahead+' commit(s) local(is) ainda não enviados ao GitHub. O comando .push atualiza a partir da main; ele não publica commits.')
+   return c.reply('✅ O bot já está na versão mais recente da main. Nenhuma reinicialização foi necessária.')
+  }
   const message=await commitMessage()
   await c.reply('✅ *MAIN SINCRONIZADA*\n\nCommit: '+result.version+'\nAlteração: '+message+'\n\n🔄 Reiniciando o bot...')
   setTimeout(()=>process.exit(75),500)

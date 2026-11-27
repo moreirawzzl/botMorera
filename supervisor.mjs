@@ -11,16 +11,18 @@ async function update(){
  if(await git('branch','--show-current')!=='main')throw Error('A branch local precisa ser main.')
  if(await git('status','--porcelain','--untracked-files=no'))throw Error('Existem alterações locais rastreadas. Atualização cancelada para preservar seus arquivos.')
  await git('fetch','origin','main')
- await git('merge-base','--is-ancestor','HEAD','FETCH_HEAD')
  const before=await git('rev-parse','HEAD')
+ const remote=await git('rev-parse','FETCH_HEAD')
+ const [ahead,behind]=(await git('rev-list','--left-right','--count',before+'...'+remote)).split(/\s+/).map(Number)
+ if(ahead>0&&behind===0)return {version:before.slice(0,8),updated:false,ahead}
+ if(ahead>0&&behind>0)return {error:'A main local e a remota têm commits próprios. Integre a divergência manualmente antes de usar .push; nenhum reset foi executado.'}
+ if(ahead===0&&behind===0)return {version:before.slice(0,8),updated:false,ahead:0}
  await git('merge','--ff-only','FETCH_HEAD')
  const after=await git('rev-parse','HEAD')
- if(before!==after){
-  const args=['install','--no-save','--package-lock=false','--no-audit','--no-fund','qrcode','node-webpmux']
-  if(process.platform==='win32')await exec(process.env.ComSpec||'cmd.exe',['/d','/s','/c','npm '+args.join(' ')],{cwd:root,env,timeout:300000,windowsHide:true})
-  else await exec('npm',args,{cwd:root,env,timeout:300000})
- }
- return after.slice(0,8)
+ const args=['install','--no-save','--package-lock=false','--no-audit','--no-fund','qrcode','node-webpmux']
+ if(process.platform==='win32')await exec(process.env.ComSpec||'cmd.exe',['/d','/s','/c','npm '+args.join(' ')],{cwd:root,env,timeout:300000,windowsHide:true})
+ else await exec('npm',args,{cwd:root,env,timeout:300000})
+ return {version:after.slice(0,8),updated:true,ahead:0}
 }
 function launch(){
  if(stopping)return
@@ -31,7 +33,7 @@ function launch(){
   const reply=data=>{if(current.connected)current.send({type:'bot-update-result',id:m.id,...data},()=>{})}
   if(busy)return reply({error:'Já existe uma atualização em andamento.'})
   busy=true
-  try{reply({version:await update()})}catch(e){console.error('Atualização:',e.message);reply({error:'Não foi possível atualizar com segurança. Confira o CMD (branch, conflitos, rede ou dependências). Nenhum reset foi executado.'})}finally{busy=false}
+  try{reply(await update())}catch(e){console.error('Atualização:',e.message);reply({error:'Não foi possível atualizar com segurança. Confira o CMD (branch, conflitos, rede ou dependências). Nenhum reset foi executado.'})}finally{busy=false}
  })
  current.on('error',e=>console.error('Supervisor:',e.message))
  current.on('exit',(code,signal)=>{
