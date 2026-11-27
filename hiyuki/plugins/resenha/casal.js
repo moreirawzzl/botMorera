@@ -1,2 +1,12 @@
-const {createHash}=require('node:crypto');
-module.exports={name:"casal",description:"Sorteia dupla do dia, só por brincadeira.",aliases:[],async execute(c){if(!c.isGroup)return c.reply('Só em grupos.');const meta=await c.columbina.groupMetadata(c.from);const ids=[...new Set(meta.participants.map(m=>m.id).filter(id=>id&&id!==c.botNumber))].sort();if(ids.length<2)return c.reply('São necessários dois participantes.');const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());const h=createHash('sha256').update(c.from+day).digest();const a=ids.splice(h.readUInt32BE(0)%ids.length,1)[0],b=ids[h.readUInt32BE(4)%ids.length];return c.columbina.sendMessage(c.from,{text:'💞 Dupla do dia (brincadeira): @'+a.split('@')[0]+' e @'+b.split('@')[0],mentions:[a,b]},{quoted:c.info})}}
+const {members,tag}=require('../../arquivos/js/resenhaMembros')
+const {seed,hash}=require('../../arquivos/js/resenhaDiaria')
+async function execute(c,renew=false){
+ if(!c.isGroup)return c.reply('Só em grupos.')
+ const ids=[...new Set((await members(c)).map(p=>p.id))]
+ if(ids.length<2)return c.reply('São necessários dois participantes.')
+ const s=seed(c.from,'casal',renew)
+ ids.sort((a,b)=>hash(s,a)-hash(s,b)||a.localeCompare(b))
+ const [a,b]=ids
+ return c.columbina.sendMessage(c.from,{text:'💞 *'+(renew?'NOVO CASAL DO DIA':'CASAL DO DIA')+'*\n\n'+tag(a)+' e '+tag(b)+'\n\n_Sorteio fictício, só brincadeira._',mentions:[a,b]},{quoted:c.info})
+}
+module.exports={name:'casal',description:'Mostra o casal do dia. Use .novocasal para sortear novamente.',execute:c=>execute(c),renew:c=>execute(c,true)}
