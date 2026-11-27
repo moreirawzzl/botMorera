@@ -6,6 +6,7 @@ import { downloadContentFromMessage, jidNormalizedUser } from '@whiskeysockets/b
 import Manager from './hiyuki/comandos.js'
 import MenuSystem from './hiyuki/arquivos/js/menuSystem.js'
 import { ffmpeg, gerarFigurinha } from './lib.mjs'
+import { cropStickerText } from './sticker-text.mjs'
 
 const configFile = new URL('./hiyuki/database/config.json', import.meta.url)
 const jsonDir = new URL('./hiyuki/arquivos/json/', import.meta.url)
@@ -46,10 +47,11 @@ async function media(cmd, ctx) {
   const partes = []
   for await (const parte of await downloadContentFromMessage(item, tipo)) partes.push(parte)
   const bytes = Buffer.concat(partes)
-  // Static images must fit the canvas; never crop text or faces.
+  // Static images: crop detected text unless the user requests the full image.
   if (cmd === 'sticker' && tipo === 'image') {
     const sharp = (await import('sharp')).default
-    const image = await sharp(bytes,{limitInputPixels:20000000}).rotate().resize(512,512,{
+    const source = /^(inteira|original)$/i.test(ctx.q?.trim()||'') ? bytes : await cropStickerText(bytes)
+    const image = await sharp(source,{limitInputPixels:20000000}).rotate().resize(512,512,{
       fit:'contain',background:{r:0,g:0,b:0,alpha:0}
     }).png().toBuffer()
     for (const quality of [85,70,55,40,25]) {

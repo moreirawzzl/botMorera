@@ -23,12 +23,12 @@ module.exports={name:'ocr',description:'Extrai texto de imagem marcada. Use .ocr
   const size=Math.min(1800,Math.max(900,Math.max(meta.width||0,meta.height||0)*2))
   await sharp(b,{limitInputPixels:20000000}).rotate().flatten({background:'#ffffff'}).resize({width:size,height:size,fit:'inside'}).grayscale().normalize().sharpen().png().toFile(input)
   const raw=c.q?.trim().toLowerCase()==='bruto'
-  const run=async psm=> (await promisify(execFile)(process.env.TESSERACT_PATH||'tesseract',[input,'stdout','-l','por+eng','--psm',String(psm),...(raw?[]:['tsv'])],{timeout:45000,maxBuffer:2*1024*1024,windowsHide:true})).stdout
+  const run=async psm=> (await promisify(execFile)(process.env.TESSERACT_PATH||'tesseract',[input,'stdout','-l','por','--psm',String(psm),...(raw?[]:['tsv'])],{timeout:45000,maxBuffer:2*1024*1024,windowsHide:true})).stdout
   let result=await run(11)
   result=raw?result.trim():parse(result)
   if(!result&&!raw)result=parse(await run(6))
   if(!result)return c.reply('Não encontrei texto com confiança suficiente. Tente uma imagem mais nítida ou use '+c.prefix+'ocr bruto.')
   return c.reply('📝 *TEXTO EXTRAÍDO*\n\n'+result.slice(0,10000))
- }catch(e){console.error('[OCR]',e.message);return c.reply('OCR falhou. Confira a imagem e a instalação do Tesseract com idiomas por e eng.')}
+ }catch(e){console.error('[OCR]',e.message);return c.reply('OCR falhou. Confira a imagem e a instalação do Tesseract com idioma por.')}
  finally{busy=false;if(dir)await fs.rm(dir,{recursive:true,force:true})}
 }}
