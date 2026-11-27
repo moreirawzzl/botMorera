@@ -9,7 +9,7 @@ const labels = {
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
 const musicas = new Set(['play','mp4','spotify','letra'])
 const utilidades = new Set(['ping','cep','cotacao','clima','lembrete','traduzir','qrcode','pdf','zip','extrairpdf','lerqrcode','traduziraudio','resumiraudio','pesquisar','transcrever','resumo','noticias','dicionario','ddd','versao'])
-const jogos = new Set(['apostarauravelha','velha','ranking','pontos','jogodavelha','addpontos','tirarpontos','corno','rankcorno'])
+const jogos = new Set(['apostarauravelha','velha','ranking','pontos','jogodavelha','addpontos','tirarpontos','corno','rankcorno','tribunal'])
 const ordem = Object.keys(labels)
 const descriptions = {
   ping:'Mede o tempo de resposta, recorde, média e memória do bot.',
@@ -18,6 +18,10 @@ const descriptions = {
   perfil:'Mostra pontos, aura, pontos de corno e atividade da pessoa. Ex.: .perfil @pessoa',
   regras:'Mostra as regras. Admins: .regras definir texto acrescenta; .regras editar texto substitui; .regras remover apaga todas.',
   pergunta:'Faz uma pergunta para iniciar conversa. Você também pode escrever a pergunta depois do comando.',
+  desculpa:'Gera uma desculpa absurda para qualquer situação.',
+  oraculo:'Responde perguntas com a sabedoria duvidosa do oráculo do caos.',
+  tribunal:'Julga uma pessoa marcada por crimes completamente bobos. Ex.: .tribunal @pessoa',
+  caos:'Sorteia um acontecimento absurdo para animar a conversa.',
   spotify:'Pesquisa até cinco faixas e envia link e prévia quando disponível. Ex.: .spotify nome da música',
   limparmusicas:'Limpa pesquisas e arquivos locais de músicas.',
   "info": "Mostra informações do bot.",
