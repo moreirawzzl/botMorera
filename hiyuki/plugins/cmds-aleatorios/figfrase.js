@@ -27,7 +27,7 @@ function wrap(text, limit) {
  return lines
 }
 module.exports = {
- name:'figfrase', description:'Figurinha quadrada com texto e estilos animados',
+ name:'figfrase', description:'Figurinha quadrada com texto, nome do autor e estilos animados',
  async execute(ctx) {
   const {normalizeMessageContent} = await import('@whiskeysockets/baileys')
   const msg = normalizeMessageContent(ctx.info.message)
@@ -39,6 +39,9 @@ module.exports = {
   const theme = (ctx.args[0] || 'transparente').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase()
   if (!Object.hasOwn(themes,theme)) return ctx.reply(help)
   const animated = ['piscar','arcoiris','glitch'].includes(theme) || ctx.args.slice(1).some(a=>a.toLowerCase()==='animado')
+  const author = await ctx.quotedAuthor()
+  const signature = '- '+chars(author.name.replace(/\s+/gu,' ').trim()).slice(0,45).join('')
+  const signedText = text+'\n\n'+signature
   const [bg,fg] = themes[theme]
   const {ffmpeg} = await import('../../../lib.mjs')
   const dir = fs.mkdtempSync(path.join(os.tmpdir(),'figfrase-'))
@@ -50,7 +53,7 @@ module.exports = {
    if (!font) return ctx.reply('Fonte do sistema indisponível. Instale Arial ou DejaVu Sans.')
    let size=52, lines
    while (size>=22) {
-    lines=wrap(text,Math.floor(424/(size*.72)))
+    lines=wrap(signedText,Math.floor(424/(size*.85)))
     if (lines.length*(size+10)<=420) break
     size-=2
    }

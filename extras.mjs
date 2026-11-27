@@ -71,17 +71,23 @@ const xml = s=>String(s).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'').replace(/[&
 function wrap(s,width) {
   const rows=[]; for(const p of s.split(/\r?\n/)) { let line=''; for(const w of p.split(/\s+/)) { for(const part of (w.match(new RegExp('.{1,'+width+'}','gu')) || [''])) { if(line && [...line+' '+part].length>width) {rows.push(line); line=''} line+=(line?' ':'')+part } } rows.push(line) } return rows
 }
+export async function quotedAuthor(ctx) {
+  const c=context(ctx)
+  const cached=authors.get(ctx.from+'/'+c.stanzaId)
+  const id=norm(c.participant || (cached?.id==='self'?ctx.columbina.user?.id:cached?.id))
+  if(!id) return {id:'',name:'Autor desconhecido'}
+  const who=await canonical(ctx.columbina,id).catch(()=>id)
+  const member=(ctx.groupMembers||[]).find(m=>[m.id,m.lid,m.phoneNumber].some(j=>[id,who].includes(norm(j))))
+  const name=String(cached?.name||names.get(id)||names.get(who)||member?.notify||member?.name|| (norm(ctx.columbina.user?.id)===who ? ctx.columbina.user?.name : '') || 'Autor desconhecido').slice(0,60)
+  return {id,name}
+}
 export async function quoteImage(ctx) {
   const c=context(ctx), q=c.quotedMessage
   const text=q?.conversation || q?.extendedTextMessage?.text || q?.imageMessage?.caption || q?.videoMessage?.caption
   if(!text?.trim()) return ctx.reply('Responda a uma mensagem de texto com '+ctx.prefix+'quote.')
   if([...text].length>700) return ctx.reply('Use uma mensagem de até 700 caracteres.')
-  const cached=authors.get(ctx.from+'/'+c.stanzaId)
-  const id=norm(c.participant || (cached?.id==='self'?ctx.columbina.user?.id:cached?.id))
+  const {id,name}=await quotedAuthor(ctx)
   if(!id) return ctx.reply('Não consegui identificar o autor da mensagem.')
-  const who=await canonical(ctx.columbina,id)
-  const member=ctx.groupMembers.find(m=>[m.id,m.lid,m.phoneNumber].some(j=>[id,who].includes(norm(j))))
-  const name=String(cached?.name||names.get(id)||names.get(who)||member?.notify||member?.name|| (norm(ctx.columbina.user?.id)===who ? ctx.columbina.user?.name : '') || who.split('@')[0]).slice(0,60)
   const sharp=(await import('sharp')).default
   let avatar
   try { const url=await ctx.columbina.profilePictureUrl(id,'image'); if(url){const r=await fetch(url,{signal:AbortSignal.timeout(7000)}); if(r.ok){const bytes=Buffer.from(await r.arrayBuffer()); if(bytes.length<=5*1024*1024) avatar=await sharp(bytes,{limitInputPixels:20000000}).resize(176,176).composite([{input:Buffer.from('<svg width="176" height="176"><circle cx="88" cy="88" r="88" fill="white"/></svg>'),blend:'dest-in'}]).png().toBuffer()}} }catch{}

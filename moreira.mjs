@@ -1,4 +1,4 @@
-import { registerExtras, muted, temPermissaoDono } from './extras.mjs'
+import { registerExtras, muted, temPermissaoDono, quotedAuthor } from './extras.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -46,6 +46,18 @@ async function media(cmd, ctx) {
   const partes = []
   for await (const parte of await downloadContentFromMessage(item, tipo)) partes.push(parte)
   const bytes = Buffer.concat(partes)
+  // Static images must fit the canvas; never crop text or faces.
+  if (cmd === 'sticker' && tipo === 'image') {
+    const sharp = (await import('sharp')).default
+    const image = await sharp(bytes,{limitInputPixels:20000000}).rotate().resize(512,512,{
+      fit:'contain',background:{r:0,g:0,b:0,alpha:0}
+    }).png().toBuffer()
+    for (const quality of [85,70,55,40,25]) {
+      const sticker=await sharp(image).webp({quality}).toBuffer()
+      if(sticker.length<=500*1024)return columbina.sendMessage(from,{sticker},{quoted:info})
+    }
+    return reply('Não consegui reduzir a imagem para figurinha.')
+  }
   if (cmd === 'gerarlink') {
     const form = new FormData()
     form.set('reqtype', 'fileupload')
@@ -87,7 +99,7 @@ export async function comandoBase(sock, info, texto, limparPedidos) {
   if (plugin.category === 'premium' && !manager.isPremium(sender, donoJid)) return reply('Comando premium.')
   if (plugin.category === 'resenha' && !manager.isResenhaAtiva(from)) return reply('O modo resenha está desligado.')
   const isGroup = from.endsWith('@g.us')
-  const groupMembers = isGroup && (['admin','dono','menu'].includes(plugin.category) || ['menu','quote','frase'].includes(plugin.name)) ? (await sock.groupMetadata(from)).participants : []
+  const groupMembers = isGroup && (['admin','dono','menu'].includes(plugin.category) || ['menu','quote','frase','figfrase'].includes(plugin.name)) ? (await sock.groupMetadata(from)).participants : []
   const admins = groupMembers.filter(m => m.admin).flatMap(m => [m.id,m.phoneNumber,m.lid]).filter(Boolean).map(jidNormalizedUser)
   const isAdm = isDono || [sender,info.key.participant,info.key.participantAlt].filter(Boolean).some(j => admins.includes(jidNormalizedUser(j)))
   const isBotAdm = [sock.user.id,sock.user.lid].filter(Boolean).some(j => admins.includes(jidNormalizedUser(j)))
@@ -107,6 +119,7 @@ export async function comandoBase(sock, info, texto, limparPedidos) {
   const ctx = { columbina:sock, from, info, prefix, reply, sender, groupMembers, isGroup, isDono, isAdm, isBotAdm,
     botNumber:jidNormalizedUser(sock.user.id), donoJid, args, q:args.join(' '), commandManager:manager, menu,
     reagir:text => sock.sendMessage(from,{react:{text,key:info.key}}) }
+  ctx.quotedAuthor = () => quotedAuthor(ctx)
   ctx.limparPedidos = limparPedidos
   ctx.media = cmd => media(cmd,ctx)
   await plugin.execute(ctx)
