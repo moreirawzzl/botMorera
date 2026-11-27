@@ -6,37 +6,67 @@ const read = () => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8'
 const save = data => { const tmp = new URL(file.href+'.tmp'); fs.writeFileSync(tmp,JSON.stringify(data)); fs.renameSync(tmp,file) }
 const norm = id => id ? jidNormalizedUser(id) : ''
 const permissoes = new URL('./hiyuki/database/permissoes-dono.json', import.meta.url)
-const autorizados = () => fs.existsSync(permissoes) ? JSON.parse(fs.readFileSync(permissoes,'utf8')) : []
-export function temPermissaoDono(sender, principal) {
-  return sender === principal || autorizados().includes(sender)
+const validOwnerId = id => /^\d+@(s\.whatsapp\.net|lid)$/.test(id)
+function autorizados() {
+  if (!fs.existsSync(permissoes)) return []
+  const data = JSON.parse(fs.readFileSync(permissoes,'utf8').replace(/^\uFEFF/,''))
+  if(!Array.isArray(data)) throw Error('Arquivo de permissões inválido.')
+  return data.map(x=>Array.isArray(x)?x:[x]).map(ids=>[...new Set(ids.filter(x=>typeof x==='string').map(norm).filter(validOwnerId))]).filter(ids=>ids.length)
+}
+function salvarAutorizados(lista) {
+  fs.mkdirSync(new URL('./hiyuki/database/',import.meta.url),{recursive:true})
+  const tmp = new URL(permissoes.href+'.tmp')
+  fs.writeFileSync(tmp,JSON.stringify(lista,null,2))
+  fs.renameSync(tmp,permissoes)
+}
+async function ownerIds(sock, ids) {
+  const result=new Set(ids.filter(x=>typeof x==='string').map(norm).filter(validOwnerId))
+  const map=sock?.signalRepository?.lidMapping
+  for(const id of [...result]){
+    try {
+      const alias=id.endsWith('@lid')?await map?.getPNForLID?.(id):await map?.getLIDForPN?.(id)
+      if(alias&&validOwnerId(norm(alias)))result.add(norm(alias))
+    }catch{}
+  }
+  return result
+}
+export async function temPermissaoDono(sender, principal, sock, key={}) {
+  const principalId=norm(principal)
+  if(norm(sender)===principalId)return true
+  const direct=key.fromMe?[sock?.user?.id,sock?.user?.lid]:key.remoteJid?.endsWith('@g.us')?[key.participant,key.participantAlt]:[key.remoteJid,key.remoteJidAlt]
+  const ids=await ownerIds(sock,[sender,...direct])
+  if(ids.has(principalId))return true
+  const lista=autorizados()
+  const match=lista.filter(row=>row.some(id=>ids.has(id)))
+  if(!match.length)return false
+  const merged=[...new Set([...match.flat(),...ids])]
+  if(match.length>1||merged.length!==match[0].length)salvarAutorizados([...lista.filter(row=>!match.includes(row)),merged])
+  return true
 }
 async function permissaoDono(c) {
-  if (c.sender !== c.donoJid) return c.reply('Só o dono principal pode gerenciar estas permissões.')
+  if (norm(c.sender)!==norm(c.donoJid)) return c.reply('Só o dono principal pode gerenciar estas permissões.')
   const [acao, argumento] = c.args
   if (acao === 'listar') {
     const lista = autorizados()
-    return c.reply(lista.length ? lista.map(id => id.split('@')[0]).join('\n') : 'Nenhuma pessoa autorizada.')
+    return c.reply(lista.length ? lista.map(ids=>ids.find(id=>id.endsWith('@s.whatsapp.net'))||ids[0]).map(id=>id.split('@')[0]).join('\n') : 'Nenhuma pessoa autorizada.')
   }
   const mencoes = context(c).mentionedJid || []
-  let id
+  let ids=new Set()
   if (mencoes.length === 1 && argumento?.startsWith('@')) {
     const membro = c.groupMembers.find(m => [m.id,m.lid,m.phoneNumber].some(j => norm(j) === norm(mencoes[0])))
-    id = await canonical(c.columbina, membro?.phoneNumber || mencoes[0])
+    ids=await ownerIds(c.columbina,[mencoes[0],membro?.id,membro?.lid,membro?.phoneNumber])
   } else if (!mencoes.length && /^\+?\d{10,15}$/.test(argumento || '')) {
     const n = argumento.replace(/^\+/,'')
-    id = (n.length <= 11 && !argumento.startsWith('+') ? '55' : '') + n + '@s.whatsapp.net'
+    ids=await ownerIds(c.columbina,[(n.length<=11&&!argumento.startsWith('+')?'55':'')+n+'@s.whatsapp.net'])
   }
-  if (c.args.length !== 2 || !['add','remover'].includes(acao) || !/^\d+@s\.whatsapp\.net$/.test(id || '')) {
-    return c.reply('Use '+c.prefix+'perm add @pessoa ou '+c.prefix+'perm remover @pessoa. Também pode informar o número com DDI.')
-  }
-  if (id === c.donoJid) return c.reply('O dono principal já tem acesso permanente.')
-  const lista = new Set(autorizados())
-  if (acao === 'add') lista.add(id)
-  else lista.delete(id)
-  const tmp = new URL(permissoes.href+'.tmp')
-  fs.writeFileSync(tmp,JSON.stringify([...lista]))
-  fs.renameSync(tmp,permissoes)
-  return c.reply((acao === 'add' ? 'Acesso liberado para ' : 'Acesso retirado de ') + id.split('@')[0] + '.')
+  if (c.args.length !== 2 || !['add','remover'].includes(acao) || !ids.size) return c.reply('Use '+c.prefix+'perm add @pessoa ou '+c.prefix+'perm remover @pessoa. Também pode informar o número com DDI.')
+  if(ids.has(norm(c.donoJid)))return c.reply('O dono principal já tem acesso permanente.')
+  const lista=autorizados(),matched=lista.filter(row=>row.some(id=>ids.has(id)))
+  const next=lista.filter(row=>!matched.includes(row))
+  if(acao==='add')next.push([...new Set([...ids,...matched.flat()])])
+  salvarAutorizados(next)
+  const id=[...ids].find(x=>x.endsWith('@s.whatsapp.net'))||[...ids][0]
+  return c.reply((acao==='add'?'Acesso permanente salvo para ':'Acesso retirado de ')+id.split('@')[0]+'.')
 }
 async function canonical(sock,id) {
   id=norm(id)

@@ -35,7 +35,7 @@ async function remetente(sock, key) {
 }
 export async function podeUsar(sock, key) {
   const sender = await remetente(sock, key)
-  return temPermissaoDono(sender, donoJid) || (global.botLigado !== false && !(await muted(sock,key,sender)))
+  return (await temPermissaoDono(sender, donoJid, sock, key)) || (global.botLigado !== false && !(await muted(sock,key,sender)))
 }
 async function media(cmd, ctx) {
   const { info, reply, columbina, from } = ctx
@@ -97,7 +97,7 @@ export async function comandoBase(sock, info, texto, limparPedidos) {
   if (!plugin) return reply('Esse comando não existe animal, olha o .menu antes de falar merda')
   if (plugin.name === 'figaudio') return
   const sender = await remetente(sock, info.key)
-  const isDono = temPermissaoDono(sender, donoJid)
+  const isDono = await temPermissaoDono(sender, donoJid, sock, info.key)
   if (!isDono && !(await podeUsar(sock,info.key))) return
   if (plugin.category === 'dono' && !isDono) return reply('Comando exclusivo do dono do bot paneleiro.')
   if (plugin.category === 'premium' && !manager.isPremium(sender, donoJid)) return reply('Comando premium.')
