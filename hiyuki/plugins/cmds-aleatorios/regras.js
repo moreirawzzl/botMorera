@@ -11,18 +11,21 @@ function save(data){
  fs.writeFileSync(tmp,JSON.stringify(data,null,2))
  fs.renameSync(tmp,file)
 }
-module.exports={name:'regras',description:'Mostra ou configura as regras do grupo.',async execute(c){
+module.exports={name:'regras',description:'Mostra regras; .regras add texto adiciona; .regras editar texto substitui.',async execute(c){
  if(!c.isGroup)return c.reply('O comando .regras só pode ser usado em grupos.')
  const acao=(c.args[0]||'').toLowerCase()
  const data=read()
- if(['definir','set','editar'].includes(acao)){
+ if(['definir','set','editar','add','adicionar','acrescentar'].includes(acao)){
   if(!c.isAdm&&!c.isDono)return c.reply('Somente administradores podem definir as regras do grupo.')
-  const texto=c.args.slice(1).join(' ').trim()
+  const nova=c.args.slice(1).join(' ').trim()
+  const anterior=typeof data[c.from]==='string'?data[c.from]:data[c.from]?.texto
+  const substituir=acao==='editar'
+  const texto=nova?(substituir||!anterior?nova:anterior.trimEnd()+'\n'+nova):''
   if(!texto)return c.reply('Use '+c.prefix+'regras definir texto das regras.')
   if([...texto].length>2500)return c.reply('As regras podem ter no máximo 2.500 caracteres.')
   data[c.from]={texto,atualizadoEm:Date.now()}
   save(data)
-  return c.reply('✅ Regras do grupo atualizadas. Todos podem consultá-las com '+c.prefix+'regras.')
+  return c.reply('✅ '+(substituir?'Regras substituídas.':'Regra adicionada sem apagar as anteriores.')+' Todos podem consultá-las com '+c.prefix+'regras.')
  }
  if(['remover','limpar','apagar'].includes(acao)){
   if(!c.isAdm&&!c.isDono)return c.reply('Somente administradores podem remover as regras do grupo.')
