@@ -6,7 +6,7 @@ const labels = {
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
 const musicas = new Set(['play','spotify'])
 const utilidades = new Set(['cep','cotacao','clima','lembrete','traduzir','qrcode'])
-const jogos = new Set(['velha','ranking','pontos','jogodavelha','addpontos','tirarpontos'])
+const jogos = new Set(['velha','ranking','pontos','jogodavelha','addpontos','tirarpontos','corno','rankcorno'])
 const ordem = Object.keys(labels)
 const descriptions = {
   ping:'Mede o tempo de resposta, recorde, média e memória do bot.',
