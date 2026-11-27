@@ -66,4 +66,22 @@ function finishVelha(groupId,key,winner){
  for(const [id,n] of credits)player(g,id).score+=n
  bet.status='settled';bet.winner=winner||null;save(d);return {ok:true}
 }
-module.exports={ranking,steal,roll,addAura,distribute,reserveVelha,finishVelha}
+function daily(groupId,id,now=Date.now()){
+ const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now))
+ const yesterday=new Date(Date.parse(day+'T00:00:00Z')-86400000).toISOString().slice(0,10)
+ const d=read(),g=group(d,groupId),p=player(g,id)
+ if(p.dailyDay===day)return {error:'Você já resgatou hoje! Volte amanhã, depois da meia-noite de Brasília.',streak:p.dailyStreak}
+ const streak=p.dailyDay===yesterday?(p.dailyStreak||1)+1:1
+ const amount=500+(streak-1)*100
+ if(!Number.isSafeInteger(p.score+amount))return {error:'Limite de saldo atingido.'}
+ p.score+=amount;p.dailyDay=day;p.dailyStreak=streak;save(d)
+ return {amount,streak,score:p.score,next:amount+100}
+}
+function gamePrize(groupId,id,key){
+ const d=read(),g=group(d,groupId),prizes=g.gamePrizes||(g.gamePrizes={})
+ if(prizes[key])return {ok:true,score:prizes[key].score}
+ const p=player(g,id)
+ if(!Number.isSafeInteger(p.score+100))return {error:'Limite de saldo atingido.'}
+ p.score+=100;prizes[key]={id,score:p.score};save(d);return {ok:true,score:p.score}
+}
+module.exports={ranking,steal,roll,addAura,distribute,reserveVelha,finishVelha,daily,gamePrize}
