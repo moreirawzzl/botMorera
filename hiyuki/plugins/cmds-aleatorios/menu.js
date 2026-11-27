@@ -4,7 +4,7 @@ const labels = {
  downloads:'📥 DOWNLOADS', efeitos:'✨ EFEITOS', midias:'📷 MÍDIAS', rpg:'⚔️ RPG', menu:'📋 OUTROS MENUS'
 }
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
-const musicas = new Set(['play','spotify'])
+const musicas = new Set(['play','spotify','letra'])
 const utilidades = new Set(['cep','cotacao','clima','lembrete','traduzir','qrcode'])
 const jogos = new Set(['apostarauravelha','velha','ranking','pontos','jogodavelha','addpontos','tirarpontos','corno','rankcorno'])
 const ordem = Object.keys(labels)
