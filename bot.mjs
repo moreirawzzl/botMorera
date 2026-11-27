@@ -47,13 +47,14 @@ function arquivoControleGrupo(jid) {
 function sessaoDoGrupo(jid) {
   if (!jid?.endsWith('@g.us')) return 'moreira'
   try {
-    return JSON.parse(fs.readFileSync(arquivoControleGrupo(jid),'utf8')).selecionado === 'andrade' ? 'andrade' : 'moreira'
+    const nome = JSON.parse(fs.readFileSync(arquivoControleGrupo(jid),'utf8')).selecionado
+    return ['moreira','andrade','ambos'].includes(nome) ? nome : 'moreira'
   } catch (e) {
     if (e.code !== 'ENOENT') console.error('Controle de sessão:',e.message)
     return 'moreira'
   }
 }
-const responde = jid => Boolean(papel) && (!jid?.endsWith('@g.us') || papel === sessaoDoGrupo(jid))
+const responde = jid => Boolean(papel) && (!jid?.endsWith('@g.us') || sessaoDoGrupo(jid) === 'ambos' || papel === sessaoDoGrupo(jid))
 function selecionar(jid,nome) {
   fs.mkdirSync(controleGrupos,{recursive:true})
   const file = arquivoControleGrupo(jid)
@@ -258,7 +259,7 @@ async function iniciar() {
       const texto = conteudo?.videoMessage?.caption ?? conteudo?.imageMessage?.caption ?? conteudo?.extendedTextMessage?.text ?? conteudo?.conversation
       const comando = (texto || '').normalize('NFKC').replace(/[\u200b-\u200f\ufeff]/gu, '').trim()
       const jid = m.key.remoteJid
-      const troca = /^\.(andrade|moreira)$/i.exec(comando)
+      const troca = /^\.(andrade|moreira|ambos)$/i.exec(comando)
       if(troca){
         if(!aoVivo || historico || recentes.has(jid+'/'+m.key.id))continue
         recentes.add(jid+'/'+m.key.id)
@@ -268,13 +269,13 @@ async function iniciar() {
         if(!m.key.fromMe && !(await temPermissaoDono(sender,donoPrincipal,sock,m.key)))continue
         const nome=troca[1].toLowerCase()
         if(!jid?.endsWith('@g.us')){
-          if(papel==='moreira')await sock.sendMessage(jid,{text:'Use .andrade ou .moreira dentro do grupo que deseja configurar.'},{quoted:m})
+          if(papel==='moreira')await sock.sendMessage(jid,{text:'Use .andrade, .moreira ou .ambos dentro do grupo que deseja configurar.'},{quoted:m})
           continue
         }
         selecionar(jid,nome)
         console.log('Sessao selecionada:',nome,'| grupo:',jid,'| local:',papel)
         if(responde(jid)){
-          await sock.sendMessage(jid,{text:'✅ Sessão '+nome.toUpperCase()+' selecionada neste grupo.'},{quoted:m})
+          await sock.sendMessage(jid,{text:nome==='ambos'?'✅ Modo ambos ativado. Sessão '+papel.toUpperCase()+' respondendo neste grupo.':'✅ Sessão '+nome.toUpperCase()+' selecionada neste grupo.'},{quoted:m})
           for(const [chave,pedido] of Object.entries(registro.pedidos))if(pedido&&pedido.jid===jid)enfileirar(chave)
         }
         continue
