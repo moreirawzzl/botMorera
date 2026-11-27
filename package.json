@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "bot paneleiro para WhatsApp",
   "scripts": {
-    "start": "node bot.mjs"
+    "start": "node supervisor.mjs"
   },
   "type": "module",
   "dependencies": {

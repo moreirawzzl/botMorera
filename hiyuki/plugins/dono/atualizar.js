@@ -2,7 +2,7 @@ const {randomUUID}=require('node:crypto')
 let busy=false
 module.exports={name:'atualizar',aliases:['pull','push'],description:'Busca a main do GitHub e reinicia o bot com segurança.',async execute(c){
  if(!c.isDono)return c.reply('Exclusivo do dono.')
- if(!process.send||process.env.BOT_SUPERVISED!=='1')return c.reply('Inicie pelo novo INICIAR-BOT.bat para habilitar atualização remota.')
+ if(!process.send||process.env.BOT_SUPERVISED!=='1')return c.reply('Inicie pelo INICIAR-BOT.bat ou com npm start para habilitar a atualização remota.')
  if(busy)return c.reply('Já existe uma atualização em andamento.')
  busy=true
  try{
