@@ -17,13 +17,14 @@ function steal(groupId,attacker,target,now=Date.now()){
  if(success){a.score+=amount;b.score-=amount}else{a.score-=amount;b.score+=amount}
  a.last=now;save(d);return {success,amount,attacker:a.score,target:b.score}
 }
-function roll(groupId,id,now=Date.now()){
+function roll(groupId,id,now=Date.now(),requestId){
+ const format=ms=>{const sec=Math.max(0,Math.ceil(ms/1000));return Math.floor(sec/60)+'min '+String(sec%60).padStart(2,'0')+'s'}
  const d=read(),g=group(d,groupId),p=player(g,id)
- const wait=(p.lastAura||0)+cooldown-now
- if(wait>0)return {error:'Espere '+Math.ceil(wait/1000)+' segundos para ganhar ou perder aura novamente.'}
- const success=randomInt(100)<50
- const amount=success?randomInt(100,501):Math.min(p.score,randomInt(100,501))
+ const wait=p.lastAura? p.lastAura+cooldown-now:0
+ if((requestId&&p.lastAuraRequest===requestId)||wait>0)return {error:'⏳ Aguarde '+format(wait)+' para tentar novamente.\nSeu saldo permanece: '+p.score.toLocaleString('pt-BR')+' aura.'}
+ const success=p.score===0||randomInt(100)<65
+ const amount=success?randomInt(100,501):Math.min(p.score,randomInt(50,201))
  p.score+=success?amount:-amount
- p.lastAura=now;save(d);return {success,amount,score:p.score}
+ p.lastAura=now;p.lastAuraRequest=requestId;save(d);return {success,amount,score:p.score,next:now+cooldown}
 }
 module.exports={ranking,steal,roll}
