@@ -1,3 +1,4 @@
+import { registerExtras, muted, temPermissaoDono } from './extras.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -15,6 +16,7 @@ export const nomeBot = NomeDoBot
 const donoJid = NumeroDoDono + '@s.whatsapp.net'
 const manager = new Manager()
 manager.carregarPlugins()
+registerExtras(manager)
 manager.commands.set('figaudio', { name: 'figaudio', description: 'Cria figurinha com som', category: 'cmds-aleatorios' })
 
 export function prefixo(jid) {
@@ -31,7 +33,8 @@ async function remetente(sock, key) {
   return jids[0] || ''
 }
 export async function podeUsar(sock, key) {
-  return global.botLigado !== false || await remetente(sock, key) === donoJid
+  const sender = await remetente(sock, key)
+  return temPermissaoDono(sender, donoJid) || (global.botLigado !== false && !(await muted(sock,key,sender)))
 }
 async function media(cmd, ctx) {
   const { info, reply, columbina, from } = ctx
@@ -78,13 +81,13 @@ export async function comandoBase(sock, info, texto, limparPedidos) {
   if (!plugin || plugin.name === 'figaudio') return
   const reply = text => sock.sendMessage(from, { text }, { quoted: info })
   const sender = await remetente(sock, info.key)
-  const isDono = sender === donoJid
-  if (!isDono && global.botLigado === false) return
+  const isDono = temPermissaoDono(sender, donoJid)
+  if (!isDono && !(await podeUsar(sock,info.key))) return
   if (plugin.category === 'dono' && !isDono) return reply('Comando exclusivo do dono do BOT Moreira.')
   if (plugin.category === 'premium' && !manager.isPremium(sender, donoJid)) return reply('Comando premium.')
   if (plugin.category === 'resenha' && !manager.isResenhaAtiva(from)) return reply('O modo resenha está desligado.')
   const isGroup = from.endsWith('@g.us')
-  const groupMembers = isGroup && ['admin','dono','menu'].includes(plugin.category) ? (await sock.groupMetadata(from)).participants : []
+  const groupMembers = isGroup && (['admin','dono','menu'].includes(plugin.category) || ['menu','quote','frase'].includes(plugin.name)) ? (await sock.groupMetadata(from)).participants : []
   const admins = groupMembers.filter(m => m.admin).flatMap(m => [m.id,m.phoneNumber,m.lid]).filter(Boolean).map(jidNormalizedUser)
   const isAdm = isDono || [sender,info.key.participant,info.key.participantAlt].filter(Boolean).some(j => admins.includes(jidNormalizedUser(j)))
   const isBotAdm = [sock.user.id,sock.user.lid].filter(Boolean).some(j => admins.includes(jidNormalizedUser(j)))
@@ -92,12 +95,14 @@ export async function comandoBase(sock, info, texto, limparPedidos) {
     if (categoria === 'dono' && !isDono) return reply('Menu exclusivo do dono.')
     if (categoria === 'admin' && !isAdm) return reply('Menu exclusivo dos administradores.')
     const menus = new MenuSystem(manager)
-    const categorias = categoria ? [categoria] : ['cmds-aleatorios', ...(isAdm ? ['admin'] : []), ...(isDono ? ['dono'] : []), 'resenha','premium']
+    const categorias = categoria ? [categoria] : manager.categories.filter(c => c !== 'menu' && (c !== 'admin' || isAdm) && (c !== 'dono' || isDono))
+    const titulos = {'cmds-aleatorios':'🎮 ENTRETENIMENTO & MÍDIA',admin:'🛡️ ADMINISTRAÇÃO',dono:'👑 PROPRIETÁRIO',resenha:'😂 RESENHA',premium:'💎 PREMIUM',downloads:'📥 DOWNLOADS',efeitos:'✨ EFEITOS',midias:'🎨 MÍDIAS','inteligencia-ia':'🤖 IA',rpg:'🎲 RPG'}
     const secoes = categorias.map(cat => {
-      const cmds = menus.getCommandsByFolder(cat).map(c => prefix + c.name)
-      return cat + '\n' + (cmds.join(' · ') || 'Nenhum comando cadastrado.')
-    })
-    return reply([nomeBot, 'Dono: +55 11 97891-2732', ...secoes, 'Base Hiyuki por MisheruModz'].join('\n\n'))
+      const cmds = menus.getCommandsByFolder(cat).sort((a,b)=>a.name.localeCompare(b.name))
+      if (!cmds.length) return ''
+      return '╭─ *'+(titulos[cat]||cat.toUpperCase())+'*\n'+cmds.map(c=>'│ '+prefix+c.name+' — '+(c.description||'Comando')).join('\n')+'\n╰─────────────'
+    }).filter(Boolean)
+    return reply(['╔═══ ♛ *MOREIRA BOT* ═══╗\n🟢 Online • Prefixo: '+prefix+'\n╚══════════════════╝', ...secoes, '👑 github.com/moreirawzzl\n_Base Hiyuki por MisheruModz_'].join('\n\n'))
   }
   const ctx = { columbina:sock, from, info, prefix, reply, sender, groupMembers, isGroup, isDono, isAdm, isBotAdm,
     botNumber:jidNormalizedUser(sock.user.id), donoJid, args, q:args.join(' '), commandManager:manager, menu,

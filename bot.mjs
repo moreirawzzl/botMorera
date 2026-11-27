@@ -1,3 +1,5 @@
+import { rememberName } from './extras.mjs'
+import agenda from './hiyuki/arquivos/js/agenda.js'
 import * as Baileys from '@whiskeysockets/baileys'
 import qrcode from 'qrcode-terminal'
 import { boasVindas, comandoBase, nomeBot, podeUsar, prefixo } from './moreira.mjs'
@@ -33,6 +35,7 @@ const registro = fs.existsSync(arquivo)
   ? JSON.parse(fs.readFileSync(arquivo, 'utf8'))
   : { desde: Math.floor(Date.now() / 1000), pedidos: {} }
 let ativo
+setInterval(() => agenda.entregar(ativo).catch(e => console.log("Agenda:",e.message)), 15000).unref()
 let fila = Promise.resolve()
 let ffmpegDisponivel = await verificarFfmpeg()
 
@@ -195,6 +198,7 @@ async function iniciar() {
   async function receber(messages, historico, aoVivo) {
     for (const m of messages) {
       if (!m.message || !m.key?.id) continue
+      rememberName(m)
       const horario = Number(m.messageTimestamp)
       if (historico && !(horario >= registro.desde)) continue
 
@@ -202,8 +206,8 @@ async function iniciar() {
         ? Baileys.normalizeMessageContent(m.message)
         : m.message
       const texto = conteudo?.videoMessage?.caption ?? conteudo?.imageMessage?.caption ?? conteudo?.extendedTextMessage?.text ?? conteudo?.conversation
-      if (typeof texto !== 'string') continue
-      const comando = texto.normalize('NFKC').replace(/[\u200b-\u200f\ufeff]/gu, '').trim()
+      const comando = (texto || '').normalize('NFKC').replace(/[\u200b-\u200f\ufeff]/gu, '').trim()
+      if (!comando) continue
       const jid = m.key.remoteJid
       const emGrupo = jid?.endsWith('@g.us')
       if (!emGrupo && !jid?.endsWith('@s.whatsapp.net') && !jid?.endsWith('@lid')) continue
@@ -211,7 +215,8 @@ async function iniciar() {
       const prefix = prefixo(jid)
       const fig = comando.startsWith(prefix) && /^\s*fig[aá]udio(?:\s|$)/iu.test(comando.slice(prefix.length))
       if (!fig) {
-        if (aoVivo && comando.startsWith(prefix) && !recentes.has(chave)) {
+        const ehComando = comando.startsWith(prefix)
+        if (aoVivo && ehComando && !recentes.has(chave)) {
           recentes.add(chave)
           if (recentes.size > 4096) recentes.delete(recentes.values().next().value)
           await comandoBase(sock, m, comando, limparPedidos).catch(e => console.log('Falha no comando:', e.message))

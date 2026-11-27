@@ -1,0 +1,9 @@
+node_modules/
+auth/
+*.zip
+*.log
+.env
+.env.*
+hiyuki/database/*
+!hiyuki/database/config.json
+hiyuki/arquivos/json/*
