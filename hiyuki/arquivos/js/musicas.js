@@ -78,7 +78,7 @@ async function downloadYouTube(ctx,item){
   if(!licensed&&process.env.YOUTUBE_API_KEY){const u=new URL('https://www.googleapis.com/youtube/v3/videos');u.search=new URLSearchParams({key:process.env.YOUTUBE_API_KEY,part:'status',id});const r=await json(u);licensed=r.items?.[0]?.status?.license==='creativeCommon'}
   if(!licensed)return ctx.reply('🎵 '+item.title+'\n'+url+'\nNão encontrei licença de download aberta nos dados do vídeo.')
   if(meta.is_live||!Number.isFinite(meta.duration)||meta.duration>600)return ctx.reply('Escolha um vídeo gravado de até 10 minutos.')
-  dir=fs.mkdtempSync(path.join(os.tmpdir(),'moreira-musica-'))
+  dir=fs.mkdtempSync(path.join(os.tmpdir(),'bot-paneleiro-musica-'))
   const video=item.format==='mp4'
   await ctx.reply('🎵 Preparando '+(video?'vídeo':'áudio')+': '+item.title)
   await run(executable,['--ignore-config','--no-playlist','--no-progress','--max-filesize','25M','-f',video?'best[ext=mp4][height<=480]/best[height<=480]':'bestaudio','-o',path.join(dir,'audio.%(ext)s'),'--',url],{...opts,timeout:120000})

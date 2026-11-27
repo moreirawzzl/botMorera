@@ -63,7 +63,7 @@ module.exports = {
   const {prefix,reply,commandManager,isDono,isAdm} = ctx
   const grupos = new Map(ordem.map(k=>[k,[]]))
   for(const c of commandManager.ObterTodosComandos()){
-   if(c.isAlias || c.name==='menu' || c.name==='ia') continue
+   if(c.isAlias || c.name==='menu' || (typeof c.execute!=='function' && c.name!=='figaudio')) continue
    if(c.category==='dono'&&!isDono || c.category==='admin'&&!isAdm) continue
    const cat = c.category==='cmds-aleatorios' ? (utilidades.has(c.name)?'utilidades':musicas.has(c.name)?'musicas':fig.has(c.name)?'fig':jogos.has(c.name)?'jogos':'geral') : c.category
    if(!grupos.has(cat)) grupos.set(cat,[])
@@ -85,6 +85,6 @@ module.exports = {
    if(commands.some(c=>c.name==='figfrase')) lines.push('│   branco • preto • neon • gold','│   vidro • transparente • piscar','│   arcoiris • glitch • neon animado')
    sections.push('╭─ *'+(labels[cat]||cat.toUpperCase())+'*\n'+lines.join('\n')+'\n╰────────────')
   }
-  return reply(['╔══ *BOT MOREIRA* ══╗','🟢 Online  •  Prefixo: '+prefix,'📂 '+prefix+'menu figurinhas | musicas | utilidades | geral | jogos',...sections,'Base Hiyuki • MisheruModz'].join('\n\n'))
+  return reply(['╔══ *BOT PANELEIRO* ══╗','🟢 Online  •  Prefixo: '+prefix,'📂 '+prefix+'menu figurinhas | musicas | utilidades | geral | jogos',...sections,'Base Hiyuki • MisheruModz'].join('\n\n'))
  }
 }

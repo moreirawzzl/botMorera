@@ -1,4 +1,4 @@
-BOT Moreira
+bot paneleiro
 ========================
 
 No privado ou em grupos onde o bot participa, qualquer pessoa pode enviar um

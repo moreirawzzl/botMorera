@@ -4,7 +4,7 @@ const {normalizeMessageContent,downloadContentFromMessage}=await import('@whiske
 const m=normalizeMessageContent(c.info.message),q=normalizeMessageContent(m?.extendedTextMessage?.contextInfo?.quotedMessage)||m,v=q?.videoMessage
 if(!v||v.viewOnce||Number(v.seconds)>600)return c.reply('Marque um vídeo comum de até 10 minutos.')
 if(active>=1)return c.reply('Conversor ocupado.');active++;let dir
-try{dir=await fs.mkdtemp(path.join(os.tmpdir(),'moreira-mp3-'));let n=0,parts=[]
+try{dir=await fs.mkdtemp(path.join(os.tmpdir(),'bot-paneleiro-mp3-'));let n=0,parts=[]
 for await(const b of await downloadContentFromMessage(v,'video')){n+=b.length;if(n>32*1024*1024)throw Error('Limite de 32 MB');parts.push(b)}
 const input=path.join(dir,'in.mp4'),output=path.join(dir,'out.mp3')
 await fs.writeFile(input,Buffer.concat(parts));parts=[]

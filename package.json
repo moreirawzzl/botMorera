@@ -1,7 +1,7 @@
 {
-  "name": "bot-moreira",
+  "name": "bot-paneleiro",
   "version": "1.0.0",
-  "description": "BOT Moreira para WhatsApp",
+  "description": "bot paneleiro para WhatsApp",
   "scripts": {
     "start": "node bot.mjs"
   },

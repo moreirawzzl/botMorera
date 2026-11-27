@@ -17,7 +17,7 @@ module.exports={name:'ocr',description:'Extrai texto de imagem marcada. Use .ocr
  busy=true;let dir
  try{
   const b=await media(c,'image'),sharp=(await import('sharp')).default
-  dir=await fs.mkdtemp(path.join(os.tmpdir(),'moreira-ocr-'))
+  dir=await fs.mkdtemp(path.join(os.tmpdir(),'bot-paneleiro-ocr-'))
   const input=path.join(dir,'imagem.png')
   const meta=await sharp(b,{limitInputPixels:20000000}).metadata()
   const size=Math.min(1800,Math.max(900,Math.max(meta.width||0,meta.height||0)*2))

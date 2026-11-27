@@ -31,7 +31,7 @@ export async function cropStickerText(bytes){
   // OCR and extraction use identical oriented pixel coordinates.
   const source=await sharp(bytes,{limitInputPixels:20000000}).rotate().resize({width:1800,height:1800,fit:'inside',withoutEnlargement:true}).png().toBuffer()
   const {width,height}=await sharp(source).metadata()
-  dir=await fs.mkdtemp(path.join(os.tmpdir(),'moreira-text-'))
+  dir=await fs.mkdtemp(path.join(os.tmpdir(),'bot-paneleiro-text-'))
   const input=path.join(dir,'ocr.png')
   await sharp(source).flatten({background:'#ffffff'}).grayscale().normalize().sharpen().png().toFile(input)
   const {stdout}=await promisify(execFile)(process.env.TESSERACT_PATH||'tesseract',[input,'stdout','-l','por','--psm','11','tsv'],{timeout:18000,maxBuffer:2*1024*1024,windowsHide:true})

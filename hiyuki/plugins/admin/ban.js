@@ -9,7 +9,7 @@ aliases: ['kick', 'expulsar'],
 async execute({ columbina, from, info, args, reply, reagir, isGroup, isAdm, isBotAdm, isDono, sender, groupMembers, botNumber, donoJid }) {
 if (!isGroup) return reply('❌ Este comando só pode ser usado em grupos!')
 if (!isAdm && !isDono) return reply('❌ Apenas administradores podem usar este comando!')
-if (!isBotAdm) return reply('❌ A BOT Moreira precisa ser administradora para isso!')
+if (!isBotAdm) return reply('❌ O bot paneleiro precisa ser administrador para isso!')
 const quoted = info.message?.extendedTextMessage?.contextInfo
 let target = quoted?.participant || quoted?.mentionedJid?.[0]
 if (!target && args[0]) {
@@ -26,7 +26,7 @@ const donoPhone = getPhoneNumberFromId(donoJid_normalizado, groupMembers)
 const senderPhone = getPhoneNumberFromId(senderJid, groupMembers)
 if (targetPhone === botPhone || targetJid === botJid) {
 await reagir('❌')
-await reply(`❌ EU NÃO POSSO ME BANIR!\n\nSou a BOT Moreira 🌙`)
+await reply(`❌ EU NÃO POSSO ME BANIR!\n\nSou o bot paneleiro 🌙`)
 return
 }
 if (targetPhone === donoPhone || targetJid === donoJid_normalizado) {

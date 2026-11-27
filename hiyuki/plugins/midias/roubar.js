@@ -1,7 +1,7 @@
 const {media}=require('../../arquivos/js/imagemComando')
 const {randomUUID}=require('node:crypto')
 function metadata(pack,author){
- const json=Buffer.from(JSON.stringify({'sticker-pack-id':'moreira-'+randomUUID(),'sticker-pack-name':pack,'sticker-pack-publisher':author,emojis:['']}))
+ const json=Buffer.from(JSON.stringify({'sticker-pack-id':'bot-paneleiro-'+randomUUID(),'sticker-pack-name':pack,'sticker-pack-publisher':author,emojis:['']}))
  const exif=Buffer.from([0x49,0x49,0x2a,0,8,0,0,0,1,0,0x41,0x57,7,0,0,0,0,0,22,0,0,0])
  exif.writeUInt32LE(json.length,14)
  return Buffer.concat([exif,json])

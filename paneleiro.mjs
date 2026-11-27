@@ -69,7 +69,7 @@ async function media(cmd, ctx) {
     if (!resp.ok || !link.startsWith('https://files.catbox.moe/')) throw Error('Upload indisponível.')
     return reply(link)
   }
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'moreira-'))
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bot-paneleiro-'))
   try {
     const input = path.join(dir, 'entrada')
     fs.writeFileSync(input, bytes)
@@ -91,13 +91,15 @@ export async function comandoBase(sock, info, texto, limparPedidos) {
   const prefix = prefixo(from)
   if (!texto.startsWith(prefix)) return
   const [token, ...args] = texto.slice(prefix.length).trim().split(/\s+/)
-  const plugin = manager.ObterComando(token.toLowerCase())
-  if (!plugin || plugin.name === 'figaudio') return
+  if (!token) return
   const reply = text => sock.sendMessage(from, { text }, { quoted: info })
+  const plugin = manager.ObterComando(token.toLowerCase())
+  if (!plugin) return reply('Esse comando não existe animal, olha o .menu antes de falar merda')
+  if (plugin.name === 'figaudio') return
   const sender = await remetente(sock, info.key)
   const isDono = temPermissaoDono(sender, donoJid)
   if (!isDono && !(await podeUsar(sock,info.key))) return
-  if (plugin.category === 'dono' && !isDono) return reply('Comando exclusivo do dono do BOT Moreira.')
+  if (plugin.category === 'dono' && !isDono) return reply('Comando exclusivo do dono do bot paneleiro.')
   if (plugin.category === 'premium' && !manager.isPremium(sender, donoJid)) return reply('Comando premium.')
   if (plugin.category === 'resenha' && !manager.isResenhaAtiva(from)) return reply('O modo resenha está desligado.')
   const isGroup = from.endsWith('@g.us')
@@ -116,7 +118,7 @@ export async function comandoBase(sock, info, texto, limparPedidos) {
       if (!cmds.length) return ''
       return '╭─ *'+(titulos[cat]||cat.toUpperCase())+'*\n'+cmds.map(c=>'│ '+prefix+c.name+' — '+(c.description||'Comando')).join('\n')+'\n╰─────────────'
     }).filter(Boolean)
-    return reply(['╔═══ ♛ *MOREIRA BOT* ═══╗\n🟢 Online • Prefixo: '+prefix+'\n╚══════════════════╝', ...secoes, '👑 github.com/moreirawzzl\n_Base Hiyuki por MisheruModz_'].join('\n\n'))
+    return reply(['╔═══ ♛ *BOT PANELEIRO* ═══╗\n🟢 Online • Prefixo: '+prefix+'\n╚══════════════════╝', ...secoes, '_Base Hiyuki por MisheruModz_'].join('\n\n'))
   }
   const ctx = { columbina:sock, from, info, prefix, reply, sender, groupMembers, isGroup, isDono, isAdm, isBotAdm,
     botNumber:jidNormalizedUser(sock.user.id), donoJid, args, q:args.join(' '), commandManager:manager, menu,

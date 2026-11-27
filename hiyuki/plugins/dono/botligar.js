@@ -6,6 +6,6 @@ aliases: ['ligar', 'start'],
 async execute({ columbina, from, info, reply, isDono }) {
 if (!isDono) return reply('❌ Apenas o dono pode usar este comando!')
 global.botLigado = true
-await reply('🌕 *BOT Moreira OPERANDO NOVAMENTE* 🌕')
+await reply('🌕 *BOT PANELEIRO OPERANDO NOVAMENTE* 🌕')
 }
 }
