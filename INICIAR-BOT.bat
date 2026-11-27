@@ -16,21 +16,48 @@ if errorlevel 1 (
  echo ERRO: Node.js nao encontrado.
  goto fail
 )
-if not exist "node_modules\@whiskeysockets\baileys" (
- echo ERRO: Dependencias do bot ausentes. Execute npm install.
- goto fail
-)
 if not exist "%TESSERACT_PATH%" echo AVISO: Tesseract nao encontrado. OCR pode falhar.
 if not exist "%REMBG_PATH%" echo AVISO: RemBG nao encontrado.
-if not exist "node_modules\qrcode" echo AVISO: Execute npm install qrcode.
-if not exist "node_modules\node-webpmux" echo AVISO: Execute npm install node-webpmux.
 
-rem Check for an existing bot window/process launched by this script.
-powershell -NoProfile -Command "$p=Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue; if($p | Where-Object {$_.CommandLine -match 'bot\.mjs' -and $_.CommandLine -like ('*'+(Get-Location).Path+'*')}){exit 0}; exit 1" >nul 2>&1
+rem Check for a running bot before changing files.
+powershell -NoProfile -Command "if (Get-CimInstance Win32_Process -Filter 'Name=''node.exe''' -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match '(?i)\bbot\.mjs\b' }) { exit 0 }; exit 1" >nul 2>&1
 if not errorlevel 1 (
- echo O BOT Moreira ja parece estar aberto.
+ echo Feche a instancia do bot antes de atualizar.
  goto fail
 )
+
+echo Verificando atualizacoes na main...
+where git >nul 2>&1
+if errorlevel 1 goto gitfail
+git rev-parse --is-inside-work-tree >nul 2>&1
+if errorlevel 1 goto gitfail
+git symbolic-ref --quiet --short HEAD | findstr /x /c:"main" >nul
+if errorlevel 1 (
+ echo ERRO: A pasta nao esta na branch main. Confira com git status.
+ goto fail
+)
+git fetch origin main
+if errorlevel 1 goto gitfail
+git merge --ff-only FETCH_HEAD
+if errorlevel 1 goto gitfail
+git merge-base --is-ancestor HEAD FETCH_HEAD
+if errorlevel 1 (
+ echo AVISO: Existem commits locais que nao estao na main remota.
+ echo Confira git status antes de iniciar.
+ goto fail
+)
+echo Versao atual:
+git log -1 --oneline
+echo Verificando dependencias...
+call npm install --no-audit --no-fund
+if errorlevel 1 goto npmfailure
+if not exist "node_modules\qrcode" goto optionaldeps
+if not exist "node_modules\node-webpmux" goto optionaldeps
+goto depsdone
+:optionaldeps
+call npm install --no-save --package-lock=false qrcode node-webpmux
+if errorlevel 1 goto npmfailure
+:depsdone
 
 echo Verificando LibreTranslate...
 call :health
@@ -61,6 +88,13 @@ exit /b
 :health
 curl.exe --silent --fail --max-time 2 "%LIBRETRANSLATE_URL%/languages" >nul 2>&1
 exit /b %errorlevel%
+:gitfail
+echo ERRO: Nao foi possivel atualizar a main com seguranca.
+echo Nenhum reset ou limpeza automatica foi executado.
+git status --short
+goto fail
+:npmfailure
+echo ERRO: Falha na instalacao das dependencias.
 :fail
 pause
 exit /b 1
