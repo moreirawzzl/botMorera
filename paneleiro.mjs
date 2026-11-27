@@ -103,7 +103,7 @@ export async function comandoBase(sock, info, texto, limparPedidos) {
   if (plugin.category === 'premium' && !manager.isPremium(sender, donoJid)) return reply('Comando premium.')
   if (plugin.category === 'resenha' && !manager.isResenhaAtiva(from)) return reply('O modo resenha está desligado.')
   const isGroup = from.endsWith('@g.us')
-  const groupMembers = isGroup && (['admin','dono','menu'].includes(plugin.category) || ['menu','quote','frase','figfrase','device'].includes(plugin.name)) ? (await sock.groupMetadata(from)).participants : []
+  const groupMembers = isGroup && (['admin','dono','menu'].includes(plugin.category) || ['menu','quote','frase','figfrase','device','regras'].includes(plugin.name)) ? (await sock.groupMetadata(from)).participants : []
   const admins = groupMembers.filter(m => m.admin).flatMap(m => [m.id,m.phoneNumber,m.lid]).filter(Boolean).map(jidNormalizedUser)
   const isAdm = isDono || [sender,info.key.participant,info.key.participantAlt].filter(Boolean).some(j => admins.includes(jidNormalizedUser(j)))
   const isBotAdm = [sock.user.id,sock.user.lid].filter(Boolean).some(j => admins.includes(jidNormalizedUser(j)))
