@@ -85,7 +85,7 @@ async function downloadYouTube(ctx,item){
   let licensed=/creative commons|cc.by|public domain/i.test(meta.license||'')
   if(!licensed&&process.env.YOUTUBE_API_KEY){const u=new URL('https://www.googleapis.com/youtube/v3/videos');u.search=new URLSearchParams({key:process.env.YOUTUBE_API_KEY,part:'status',id});const r=await json(u);licensed=r.items?.[0]?.status?.license==='creativeCommon'}
   if(!licensed)return ctx.reply('🎵 '+item.title+'\n'+url+'\nNão encontrei licença de download aberta nos dados do vídeo.')
-  if(meta.is_live||!Number.isFinite(meta.duration)||meta.duration>600)return ctx.reply('Escolha um vídeo gravado de até 10 minutos.')
+  if(meta.is_live||meta.live_status==='is_upcoming'||!Number.isFinite(meta.duration)||meta.duration<=0||meta.duration>360)return ctx.reply('Escolha um vídeo gravado de até 6 minutos.')
   dir=fs.mkdtempSync(path.join(os.tmpdir(),'bot-paneleiro-musica-'))
   const video=item.format==='mp4'
   await ctx.reply('🎵 Preparando '+(video?'vídeo':'áudio')+': '+item.title)
@@ -114,6 +114,7 @@ async function deliver(ctx,item){
 async function execute(ctx,service,options={}){
  const command=options.command||(service==='youtube'?'play':service)
  let q=ctx.q?.trim()
+ if(service==='youtube'&&q?.startsWith('direto ')){options={...options,first:true};q=q.slice(7).trim()}
  let format=options.format||'mp3'
  if(service==='youtube'&&q){const m=q.match(/(?:\/|\.)(mp3|mp4|audio|video)$/i);if(m){format=/mp4|video/i.test(m[1])?'mp4':'mp3';q=q.slice(0,-m[0].length).trim()}}
  if(!q)return ctx.reply('Use '+ctx.prefix+command+' nome da música ou link.')
@@ -129,6 +130,7 @@ async function execute(ctx,service,options={}){
   const items=await (service==='youtube'?youtube(q):spotify(q))
   if(!items.length)return ctx.reply('Nenhum resultado encontrado.')
   if(service==='youtube')for(const item of items)item.format=format
+  if(service==='youtube'&&options.first)return await deliver(ctx,items[0])
   if(items.length===1)return await deliver(ctx,items[0])
   if(sessions.size>=500)sessions.delete(sessions.keys().next().value)
   sessions.set(owner,{items,until:now+ttl})
