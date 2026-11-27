@@ -32,11 +32,71 @@ export function montarCampo134(stickerMsg, audioMsg) {
   return campo(1, mensagem) // FutureProofMessage { message }
 }
 
+
+// Capture unknown sound-sticker fields during protobuf decoding.
+// Keep bytes on the decoded message without changing ordinary sticker behavior.
+function camposWire(bytes) {
+  const out=[];let p=0
+  function readVar(){let n=0,k=0;while(p<bytes.length&&k<49){const b=bytes[p++];n+=(b&127)*2**k;if(!(b&128))return n;k+=7}throw Error('Varint inválido')}
+  while(p<bytes.length){
+    const tag=readVar(),num=Math.floor(tag/8),wire=tag%8
+    if(!num)throw Error('Campo inválido')
+    if(wire===2){const n=readVar();if(n>bytes.length-p)throw Error('Campo truncado');out.push({num,data:bytes.subarray(p,p+n)});p+=n}
+    else if(wire===0)readVar()
+    else if(wire===1)p+=8
+    else if(wire===5)p+=4
+    else throw Error('Wire inválido')
+    if(p>bytes.length)throw Error('Campo truncado')
+  }
+  return out
+}
+const wireField=(bytes,num)=>camposWire(bytes).find(x=>x.num===num)?.data
+function captureDecode(type,extract){
+ const original=type.decode
+ type.decode=function(reader,length,...rest){
+  const start=reader?.pos??0
+  const buf=reader?.buf||reader
+  const value=original.call(this,reader,length,...rest)
+  try{
+   const end=reader?.pos??(length==null?buf.length:start+length)
+   extract(value,Buffer.from(buf.subarray(start,end)))
+  }catch{}
+  return value
+ }
+}
+export function audioDaFigurinha(message){
+ if(!message)return null
+ if(message.__soundSticker)return message.__soundSticker
+ if(message.stickerMessage?.__soundAudio)return {sticker:message.stickerMessage,audio:message.stickerMessage.__soundAudio}
+ for(const key of ['futureProofMessage','associatedChildMessage','deviceSentMessage','ephemeralMessage','viewOnceMessage','viewOnceMessageV2','viewOnceMessageV2Extension','stickerWithAudioMessage']){
+  const nested=message[key]?.message
+  if(nested){const result=audioDaFigurinha(nested);if(result)return result}
+ }
+ return null
+}
+function captureSound(){
+ captureDecode(proto.Message.StickerMessage,(m,bytes)=>{
+  const audio=wireField(bytes,26)
+  if(audio){const a=proto.Message.AudioMessage.decode(audio);if(a.mediaKey&&(a.url||a.directPath))m.__soundAudio=a}
+ })
+ captureDecode(proto.Message,(m,bytes)=>{
+  const raw=wireField(bytes,134)
+  if(raw){
+   const inner=wireField(raw,1),sticker=inner&&wireField(inner,26),audio=sticker&&wireField(sticker,26)
+   if(sticker&&audio){
+    const a=proto.Message.AudioMessage.decode(audio)
+    if(a.mediaKey&&(a.url||a.directPath))m.__soundSticker={sticker:proto.Message.StickerMessage.decode(sticker),audio:a}
+   }
+  }
+ })
+}
+
 // Faz o Baileys escrever o campo 134 quando a mensagem tem __raw134
 let patchAplicado = false
 export function aplicarPatchEncode() {
   if (patchAplicado) return
   patchAplicado = true
+  captureSound()
   const original = proto.Message.encode
   proto.Message.encode = function (m, w) {
     const wr = original.call(this, m, w)
