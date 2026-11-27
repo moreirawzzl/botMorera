@@ -1,6 +1,8 @@
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path')
 const {execFile}=require('node:child_process'),{promisify}=require('node:util')
-const run=promisify(execFile)
+const exec=promisify(execFile)
+// Windows pipes can default to cp1252; Whisper help and transcripts contain Unicode.
+const run=(exe,args,options={})=>exec(exe,args,{...options,env:{...process.env,PYTHONUTF8:'1',PYTHONIOENCODING:'utf-8'}})
 let busy=false
 let selected
 async function launcher(){
