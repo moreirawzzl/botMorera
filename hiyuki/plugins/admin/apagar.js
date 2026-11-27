@@ -1,5 +1,5 @@
 module.exports = {
- name:'apagar',description:'Apaga mensagem marcada: a sua própria ou, se admin, de outro membro. .apagarminha também funciona.',aliases:['del','delete','d','apagarminha'],
+ name:'apagar',description:'Apaga a mensagem marcada e o comando de solicitação, respeitando permissões.',aliases:['del','delete','d','apagarminha'],
  async execute(c){
   const {jidNormalizedUser,normalizeMessageContent}=await import('@whiskeysockets/baileys')
   const norm=id=>id?jidNormalizedUser(id):''
@@ -31,7 +31,12 @@ module.exports = {
   if(!mine&&(!c.isGroup||!c.isBotAdm))return c.reply('Para apagar mensagens de outras contas, o bot precisa ser administrador do grupo.')
   try{
    await sock.sendMessage(c.from,{delete:{remoteJid:c.from,id:q.stanzaId,fromMe:mine,...(c.isGroup?{participant:q.participant}:{})}})
-   await c.reagir('🗑️')
+   // Do not react to or quote a deleted message. Remove the command itself too.
+   const request=c.info.key
+   if(request.fromMe||(c.isGroup&&c.isBotAdm)){
+    try{await sock.sendMessage(c.from,{delete:{remoteJid:c.from,id:request.id,fromMe:Boolean(request.fromMe),...(c.isGroup&&request.participant?{participant:request.participant}:{})}})}
+    catch(e){console.error('[APAGAR] Mensagem alvo apagada, mas não consegui apagar a solicitação:',e.message)}
+   }
   }catch(e){return c.reply('Não consegui apagar. Verifique o prazo e as permissões do WhatsApp.')}
  }
 }
