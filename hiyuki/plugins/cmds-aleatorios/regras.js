@@ -11,7 +11,7 @@ function save(data){
  fs.writeFileSync(tmp,JSON.stringify(data,null,2))
  fs.renameSync(tmp,file)
 }
-module.exports={name:'regras',description:'Mostra regras; .regras add texto adiciona; .regras editar texto substitui.',async execute(c){
+module.exports={name:'regras',description:'Mostra regras; .regras definir texto adiciona uma linha; .regras editar texto substitui.',async execute(c){
  if(!c.isGroup)return c.reply('O comando .regras só pode ser usado em grupos.')
  const acao=(c.args[0]||'').toLowerCase()
  const data=read()
@@ -21,11 +21,11 @@ module.exports={name:'regras',description:'Mostra regras; .regras add texto adic
   const anterior=typeof data[c.from]==='string'?data[c.from]:data[c.from]?.texto
   const substituir=acao==='editar'
   const texto=nova?(substituir||!anterior?nova:anterior.trimEnd()+'\n'+nova):''
-  if(!texto)return c.reply('Use '+c.prefix+'regras definir texto das regras.')
-  if([...texto].length>2500)return c.reply('As regras podem ter no máximo 2.500 caracteres.')
+  if(!texto)return c.reply('Use '+c.prefix+'regras definir texto para acrescentar ou '+c.prefix+'regras editar texto para substituir.')
+  if([...texto].length>2500)return c.reply('O conjunto de regras pode ter no máximo 2.500 caracteres.')
   data[c.from]={texto,atualizadoEm:Date.now()}
   save(data)
-  return c.reply('✅ '+(substituir?'Regras substituídas.':'Regra adicionada sem apagar as anteriores.')+' Todos podem consultá-las com '+c.prefix+'regras.')
+  return c.reply('✅ '+(substituir?'Regras substituídas.':'Regra adicionada em uma nova linha.')+' Todos podem consultá-las com '+c.prefix+'regras.')
  }
  if(['remover','limpar','apagar'].includes(acao)){
   if(!c.isAdm&&!c.isDono)return c.reply('Somente administradores podem remover as regras do grupo.')
