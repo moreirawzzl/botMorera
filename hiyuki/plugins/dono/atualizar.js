@@ -1,4 +1,14 @@
 const {randomUUID}=require('node:crypto')
+const {execFile}=require('node:child_process')
+const {promisify}=require('node:util')
+const path=require('node:path')
+const exec=promisify(execFile)
+async function commitMessage(){
+ try{
+  const {stdout}=await exec('git',['log','-1','--format=%s'],{cwd:path.resolve(__dirname,'../../..'),timeout:10000,maxBuffer:65536,windowsHide:true})
+  return stdout.trim().slice(0,500)||'Sem descrição'
+ }catch{return 'Descrição indisponível'}
+}
 let busy=false
 module.exports={name:'atualizar',aliases:['pull','push'],description:'Busca a main do GitHub e reinicia o bot com segurança.',async execute(c){
  if(!c.isDono)return c.reply('Exclusivo do dono.')
@@ -16,7 +26,8 @@ module.exports={name:'atualizar',aliases:['pull','push'],description:'Busca a ma
    process.send({type:'bot-update',id},e=>{if(e){done();reject(e)}})
   })
   if(result.error)return c.reply(result.error)
-  await c.reply('✅ Main sincronizada: '+result.version+'. Reiniciando o bot...')
+  const message=await commitMessage()
+  await c.reply('✅ *MAIN SINCRONIZADA*\n\nCommit: '+result.version+'\nAlteração: '+message+'\n\n🔄 Reiniciando o bot...')
   setTimeout(()=>process.exit(75),500)
  }catch(e){return c.reply('Não foi possível concluir a atualização. Confira o CMD.')}finally{busy=false}
 }}
