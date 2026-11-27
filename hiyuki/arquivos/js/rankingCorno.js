@@ -17,14 +17,20 @@ function save(data) {
   fs.renameSync(file + '.tmp', file)
 }
 
-function add(groupId, ids) {
+function add(groupId, ids, amount = 1) {
+  if (!Number.isSafeInteger(amount) || amount < 1) {
+    return { error: 'Informe uma quantidade inteira positiva de pontos.' }
+  }
+
   const data = load()
   const scores = data[groupId] || (data[groupId] = {})
   const updated = []
 
   for (const id of new Set(ids)) {
     const current = Number.isSafeInteger(scores[id]) && scores[id] > 0 ? scores[id] : 0
-    scores[id] = current + 1
+    const score = current + amount
+    if (!Number.isSafeInteger(score)) return { error: 'O total de pontos ultrapassaria o limite permitido.' }
+    scores[id] = score
     updated.push({ id, score: scores[id] })
   }
 

@@ -16,6 +16,7 @@ module.exports = {
 
     const people = [...new Map(matched.map(person => [person.id, person])).values()]
     const updated = scores.add(c.from, people.map(person => person.id))
+    if (!Array.isArray(updated)) return c.reply(updated.error)
     const text = '🐂 *PONTOS DE CORNO*\n\n' + updated
       .map(person => tag(person.id) + ' ganhou 1 ponto • total: *' + person.score.toLocaleString('pt-BR') + '*')
       .join('\n')
