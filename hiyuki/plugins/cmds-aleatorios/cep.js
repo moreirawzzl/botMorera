@@ -1,0 +1,2 @@
+const {json}=require('../../arquivos/js/utilweb');
+module.exports={name:"cep",description:"Consulta endereço pelo CEP. Ex.: .cep 09921000",aliases:[],async execute(c){const cep=c.q.replace(/[-\s]/g,'');if(!/^\d{8}$/.test(cep))return c.reply('Informe um CEP de 8 dígitos.');try{const d=await json('https://viacep.com.br/ws/'+cep+'/json/');return c.reply(d.erro?'CEP não encontrado.':[d.logradouro,d.bairro,d.localidade+' - '+d.uf,d.cep].filter(Boolean).join('\n'))}catch{return c.reply('Consulta indisponível.')}}}

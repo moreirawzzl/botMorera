@@ -1,0 +1,2 @@
+const {randomInt}=require('node:crypto');
+module.exports={name:"sorteio",description:"Sorteia um membro do grupo.",aliases:[],async execute(c){if(!c.isGroup||!c.isAdm)return c.reply('Somente administradores em grupos.');const ids=c.groupMembers.map(m=>m.id).filter(id=>id&&id!==c.botNumber);if(!ids.length)return c.reply('Sem participantes.');const id=ids[randomInt(ids.length)];return c.columbina.sendMessage(c.from,{text:'🎉 Sorteado: @'+id.split('@')[0],mentions:[id]},{quoted:c.info})}}

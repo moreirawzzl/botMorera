@@ -1,0 +1,2 @@
+const agenda=require('../../arquivos/js/agenda');
+module.exports={name:"lembrete",description:"Agenda lembrete na conversa. Ex.: .lembrete DD/MM/AAAA HH:MM mensagem",aliases:[],async execute(c){if(c.isGroup&&!c.isDono){const meta=await c.columbina.groupMetadata(c.from);const ids=[c.sender,c.info.key.participant,c.info.key.participantAlt].filter(Boolean);if(!meta.participants.some(m=>m.admin&&[m.id,m.phoneNumber,m.lid].some(id=>ids.includes(id))))return c.reply('Somente administradores podem agendar lembretes em grupos.')}return agenda.agendar(c)}}
