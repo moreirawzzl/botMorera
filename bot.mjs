@@ -62,11 +62,11 @@ function souEu(sock, jid) {
     id && Baileys.jidNormalizedUser(id) === Baileys.jidNormalizedUser(jid))
 }
 
-async function responderTexto(sock, jid, texto) {
-  await sock.sendMessage(jid, { text: texto })
+async function responderTexto(sock, jid, texto, solicitacao) {
+  await sock.sendMessage(jid, { text: texto }, solicitacao ? { quoted: solicitacao } : {})
 }
 
-async function processarVideo(sock, m, jid, vigente) {
+async function processarVideo(sock, m, jid, vigente, solicitacao) {
   const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'figsom-'))
   try {
     console.log('Baixando video...')
@@ -78,7 +78,7 @@ async function processarVideo(sock, m, jid, vigente) {
     fs.writeFileSync(entrada, buf)
 
     if (!(await temAudio(entrada))) {
-      if (vigente()) await responderTexto(sock, jid, 'Esse video nao tem audio. Mande um video com som para eu fazer a figurinha com som.')
+      if (vigente()) await responderTexto(sock, jid, 'Esse video nao tem audio. Mande um video com som para eu fazer a figurinha com som.', solicitacao)
       return
     }
 
@@ -106,6 +106,19 @@ async function processarVideo(sock, m, jid, vigente) {
     sticker.width = 512
     sticker.height = 512
 
+    if (solicitacao?.key?.id && solicitacao.message) {
+      const citado = Baileys.normalizeMessageContent(solicitacao.message) || solicitacao.message
+      const participante = solicitacao.key.fromMe
+        ? Baileys.jidNormalizedUser(sock.user.id)
+        : solicitacao.key.participant || solicitacao.key.remoteJid
+      sticker.contextInfo = {
+        ...sticker.contextInfo,
+        stanzaId: solicitacao.key.id,
+        participant: participante,
+        remoteJid: jid,
+        quotedMessage: citado
+      }
+    }
     const raw = montarCampo134(sticker, aud.audioMessage)
     const gerarId = Baileys.generateMessageIDV2 || Baileys.generateMessageID
     if (!vigente()) return
@@ -116,7 +129,7 @@ async function processarVideo(sock, m, jid, vigente) {
     if (!vigente()) return
     if (ativo !== sock) throw e
     console.log('ERRO:', e)
-    await responderTexto(sock, jid, 'Nao consegui fazer a figurinha: ' + (e.message || e))
+    await responderTexto(sock, jid, 'Nao consegui fazer a figurinha: ' + (e.message || e), solicitacao)
   } finally {
     fs.rmSync(pasta, { recursive: true, force: true })
   }
@@ -133,13 +146,14 @@ async function iniciar() {
       const pedido = registro.pedidos[chave]
       if (!pedido || ativo !== sock) return
       const vigente = () => registro.pedidos[chave] === pedido
+      const solicitacao = pedido.solicitacao ? Baileys.proto.WebMessageInfo.decode(Buffer.from(pedido.solicitacao, 'base64')) : undefined
       if (pedido.video) {
         if (!ffmpegDisponivel) {
           ffmpegDisponivel = await verificarFfmpeg()
           if (!vigente()) return
           if (!ffmpegDisponivel) {
             if (!pedido.avisouFfmpeg) {
-              await responderTexto(sock, pedido.jid, 'Recebi seu '+prefixo(pedido.jid)+'figaudio. O conversor de vídeo está indisponível. Guardei seu pedido para quando o bot reiniciar.')
+              await responderTexto(sock, pedido.jid, 'Recebi seu '+prefixo(pedido.jid)+'figaudio. O conversor de vídeo está indisponível. Guardei seu pedido para quando o bot reiniciar.', solicitacao)
               pedido.avisouFfmpeg = true
               salvar()
             }
@@ -147,7 +161,7 @@ async function iniciar() {
           }
         }
         const video = Baileys.proto.WebMessageInfo.decode(Buffer.from(pedido.video, 'base64'))
-        const enviada = await processarVideo(sock, video, pedido.jid, vigente)
+        const enviada = await processarVideo(sock, video, pedido.jid, vigente, solicitacao)
         if (!vigente()) return
         if (enviada && pedido.offline) {
           delete pedido.video
@@ -155,10 +169,10 @@ async function iniciar() {
           salvar()
         }
       } else if (!pedido.aviso) {
-        await responderTexto(sock, pedido.jid, 'Responda a um vídeo com '+prefixo(pedido.jid)+'figaudio ou use esse comando na legenda.')
+        await responderTexto(sock, pedido.jid, 'Responda a um vídeo com '+prefixo(pedido.jid)+'figaudio ou use esse comando na legenda.', solicitacao)
       }
       if (pedido.aviso) {
-        await responderTexto(sock, pedido.jid, 'Desculpa, estava off, toma sua figurinha!')
+        await responderTexto(sock, pedido.jid, 'Desculpa, estava off, toma sua figurinha!', solicitacao)
       }
       if (!vigente()) return
       registro.pedidos[chave] = null
@@ -251,6 +265,7 @@ async function iniciar() {
       registro.pedidos[chave] = {
         jid,
         offline: !conectadoEm || horario < conectadoEm,
+        solicitacao: Buffer.from(Baileys.proto.WebMessageInfo.encode(m).finish()).toString('base64'),
         video: video && Buffer.from(Baileys.proto.WebMessageInfo.encode(video).finish()).toString('base64')
       }
       salvar()
