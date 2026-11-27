@@ -1,7 +1,7 @@
 const labels = {
  musicas:'🎵 MÚSICAS', fig:'🖼️ FIGURINHAS', jogos:'🎮 JOGOS E PONTOS', geral:'📌 COMANDOS GERAIS',
  admin:'🛡️ ADMINISTRAÇÃO', dono:'👑 DONO', resenha:'😂 RESENHA', premium:'💎 PREMIUM',
- downloads:'📥 DOWNLOADS', efeitos:'✨ EFEITOS', midias:'📷 MÍDIAS', 'inteligencia-ia':'🤖 IA', rpg:'⚔️ RPG', menu:'📋 OUTROS MENUS'
+ downloads:'📥 DOWNLOADS', efeitos:'✨ EFEITOS', midias:'📷 MÍDIAS', rpg:'⚔️ RPG', menu:'📋 OUTROS MENUS'
 }
 const fig = new Set(['fig','sticker','s','figaudio','figfrase','togif','toimg','figu','figurinha','quote','frase'])
 const musicas = new Set(['play','spotify'])
@@ -62,7 +62,7 @@ module.exports = {
   const {prefix,reply,commandManager,isDono,isAdm} = ctx
   const grupos = new Map(ordem.map(k=>[k,[]]))
   for(const c of commandManager.ObterTodosComandos()){
-   if(c.isAlias || c.name==='menu') continue
+   if(c.isAlias || c.name==='menu' || c.name==='ia') continue
    if(c.category==='dono'&&!isDono || c.category==='admin'&&!isAdm) continue
    const cat = c.category==='cmds-aleatorios' ? (musicas.has(c.name)?'musicas':fig.has(c.name)?'fig':jogos.has(c.name)?'jogos':'geral') : c.category
    if(!grupos.has(cat)) grupos.set(cat,[])
