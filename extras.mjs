@@ -154,7 +154,29 @@ export async function quoteImage(ctx){
 export function registerExtras(manager) {
   manager.commands.set('perm',plugin('perm','dono','Gerencia acesso aos comandos de dono',permissaoDono))
   const list=[
-    plugin('add','admin','Adiciona membro por número, menção ou resposta',async c=>{if(!c.isGroup||!admin(c))return c.reply('Somente administradores em grupos.'); if(!c.isBotAdm)return c.reply('O bot precisa ser administrador.');const id=await target(c); if(!id)return c.reply('Use '+c.prefix+'add 5511999999999 ou responda a uma mensagem.'); if(c.groupMembers.some(m=>[m.id,m.lid,m.phoneNumber].some(j=>norm(j)===id)))return c.reply('A pessoa já está no grupo.');try{const r=await c.columbina.groupParticipantsUpdate(c.from,[id],'add');return c.reply(String(r?.[0]?.status)==='200'?'Membro adicionado!':'Não foi possível adicionar. Verifique a privacidade e as permissões do WhatsApp.')}catch{return c.reply('Não foi possível adicionar esse membro.')}}),
+    plugin('add','admin','Adiciona membro ou envia convite privado quando a adição é bloqueada',async c=>{
+      if(!c.isGroup||!admin(c))return c.reply('Somente administradores em grupos.')
+      if(!c.isBotAdm)return c.reply('O bot precisa ser administrador.')
+      const id=await target(c)
+      if(!validOwnerId(id))return c.reply('Use '+c.prefix+'add 5511999999999 ou responda a uma mensagem.')
+      const ids=await ownerIds(c.columbina,[id])
+      if(c.groupMembers.some(m=>[m.id,m.lid,m.phoneNumber].some(j=>ids.has(norm(j)))))return c.reply('A pessoa já está no grupo.')
+      let result
+      try{result=(await c.columbina.groupParticipantsUpdate(c.from,[id],'add'))?.[0]}
+      catch{return c.reply('Não consegui adicionar. Verifique a conexão e as permissões do bot.')}
+      const status=String(result?.status)
+      if(status==='200')return c.reply('✅ Membro adicionado!')
+      if(status==='409')return c.reply('A pessoa já está no grupo.')
+      if(!['403','408','401'].includes(status))return c.reply('Não foi possível adicionar (status '+status+'). Verifique o número e as permissões.')
+      // One private invitation per explicit administrator request; never retry automatically.
+      try{
+        const code=await c.columbina.groupInviteCode(c.from)
+        if(!code||!/^[A-Za-z0-9_-]+$/.test(code))throw Error('Convite indisponível')
+        const meta=await c.columbina.groupMetadata(c.from)
+        await c.columbina.sendMessage(id,{text:'👋 Você recebeu um convite de um administrador para entrar no grupo '+(meta.subject||'do WhatsApp')+'.\n\nhttps://chat.whatsapp.com/'+code+'\n\nEntre apenas se desejar.'})
+        return c.reply('✅ O WhatsApp não permitiu adicionar diretamente. Convite enviado no privado da pessoa.')
+      }catch{return c.reply('Não foi possível adicionar nem enviar o convite privado. Verifique as permissões do grupo e do contato.')}
+    }),
     plugin('enquete','cmds-aleatorios','Cria enquete nativa do WhatsApp',async c=>{const [name,...values]=c.q.split('|').map(s=>s.trim()); if(!name||name.length>255||values.length<2||values.length>12||values.some(v=>!v||v.length>100)||new Set(values).size!==values.length)return c.reply('Use '+c.prefix+'enquete Pergunta | Opção 1 | Opção 2 (até 12 opções diferentes).');return c.columbina.sendMessage(c.from,{poll:{name,values,selectableCount:1}},{quoted:c.info})}),
     plugin('device','cmds-aleatorios','Estima a plataforma de uma mensagem citada.',async c=>{
       const q=context(c)
