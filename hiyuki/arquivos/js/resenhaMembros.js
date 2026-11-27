@@ -2,8 +2,7 @@ function norm(id){return typeof id==='string'?id.replace(/:\d+@/,'@'):''}
 function valid(id){return /^\d+@(lid|s\.whatsapp\.net)$/.test(norm(id))}
 async function members(c){
  const meta=await c.columbina.groupMetadata(c.from)
- const bot=new Set([c.botNumber,c.columbina.user?.id,c.columbina.user?.lid].map(norm).filter(Boolean))
- return meta.participants.map(p=>({id:norm(p.id||p.lid||p.phoneNumber),aliases:[p.id,p.lid,p.phoneNumber].map(norm).filter(valid)})).filter(p=>valid(p.id)&&!p.aliases.some(id=>bot.has(id)))
+ return meta.participants.map(p=>({id:norm(p.id||p.lid||p.phoneNumber),aliases:[p.id,p.lid,p.phoneNumber].map(norm).filter(valid)})).filter(p=>valid(p.id))
 }
 async function match(c,rows,input){
  const id=norm(input)
