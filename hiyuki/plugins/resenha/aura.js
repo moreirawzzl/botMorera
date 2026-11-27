@@ -1,12 +1,10 @@
-const {members,tag,match}=require('../../arquivos/js/resenhaMembros')
+const {members,match}=require('../../arquivos/js/resenhaMembros')
 const game=require('../../arquivos/js/auraJogo')
-module.exports={name:'aura',aliases:['rankingaura','rankaura','auradodia'],description:'Ranking permanente de aura do grupo. Use .roubaraura @pessoa para disputar pontos.',async execute(c){
+module.exports={name:'aura',description:'Sorteia ganho ou perda de aura. Intervalo de 5 minutos.',async execute(c){
  if(!c.isGroup)return c.reply('Só em grupos.')
- const rows=await members(c)
- if(!rows.length)return c.reply('Nenhum participante encontrado.')
- const ranked=game.ranking(c.from,rows.map(p=>p.id)),top=ranked.slice(0,10)
- const me=await match(c,rows,c.sender)
- const pos=ranked.findIndex(p=>p.id===me?.id)
- const lines=top.map((p,i)=>(['🥇','🥈','🥉'][i]||String(i+1)+'.')+' '+tag(p.id)+' — *'+p.score.toLocaleString('pt-BR')+' aura*')
- return c.columbina.sendMessage(c.from,{text:'⚡ *RANKING DE AURA*\n\n'+lines.join('\n')+(pos>=0?'\n\nSua posição: '+(pos+1)+'º • '+ranked[pos].score.toLocaleString('pt-BR')+' aura':'')+'\n\nRoube aura com '+c.prefix+'roubaraura @pessoa.',mentions:top.map(p=>p.id)},{quoted:c.info})
+ const rows=await members(c),me=await match(c,rows,c.sender)
+ if(!me)return c.reply('Não consegui identificar seu jogador.')
+ const r=game.roll(c.from,me.id)
+ if(r.error)return c.reply(r.error)
+ return c.reply((r.success?'⚡ *VOCÊ GANHOU AURA!*':'💀 *VOCÊ PERDEU AURA!*')+'\n\n'+(r.success?'+':'-')+r.amount.toLocaleString('pt-BR')+' aura\nSaldo atual: *'+r.score.toLocaleString('pt-BR')+' aura*\n\nPróxima tentativa em 5 minutos.\nVeja o ranking com '+c.prefix+'rankaura.')
 }}

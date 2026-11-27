@@ -1,9 +1,9 @@
 const {members,match,quotedMentions,tag}=require('../../arquivos/js/resenhaMembros')
 const game=require('../../arquivos/js/auraJogo')
-module.exports={name:'roubaraura',aliases:['rouboaura','furtaraura'],description:'Tenta roubar aura de um membro marcado. Chance de 65%; intervalo de 5 minutos.',async execute(c){
+module.exports={name:'roubar',aliases:['roubaraura','rouboaura','furtaraura'],description:'Tenta roubar aura de um membro marcado. Chance de 65%; intervalo de 5 minutos.',async execute(c){
  if(!c.isGroup)return c.reply('Só em grupos.')
  const marked=await quotedMentions(c)
- if(marked.length!==1)return c.reply('Use '+c.prefix+'roubaraura @pessoa (uma menção).')
+ if(marked.length!==1)return c.reply('Use '+c.prefix+'roubar @pessoa (uma menção).')
  const rows=await members(c),a=await match(c,rows,c.sender),b=await match(c,rows,marked[0])
  if(!a||!b)return c.reply('Não consegui identificar os jogadores.')
  const r=game.steal(c.from,a.id,b.id)

@@ -17,4 +17,13 @@ function steal(groupId,attacker,target,now=Date.now()){
  if(success){a.score+=amount;b.score-=amount}else{a.score-=amount;b.score+=amount}
  a.last=now;save(d);return {success,amount,attacker:a.score,target:b.score}
 }
-module.exports={ranking,steal}
+function roll(groupId,id,now=Date.now()){
+ const d=read(),g=group(d,groupId),p=player(g,id)
+ const wait=(p.lastAura||0)+cooldown-now
+ if(wait>0)return {error:'Espere '+Math.ceil(wait/1000)+' segundos para ganhar ou perder aura novamente.'}
+ const success=randomInt(100)<50
+ const amount=success?randomInt(100,501):Math.min(p.score,randomInt(100,501))
+ p.score+=success?amount:-amount
+ p.lastAura=now;save(d);return {success,amount,score:p.score}
+}
+module.exports={ranking,steal,roll}
