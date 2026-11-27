@@ -31,9 +31,10 @@ where git >nul 2>&1
 if errorlevel 1 goto gitfail
 git rev-parse --is-inside-work-tree >nul 2>&1
 if errorlevel 1 goto gitfail
-git symbolic-ref --quiet --short HEAD | findstr /x /c:"main" >nul
-if errorlevel 1 (
- echo ERRO: A pasta nao esta na branch main. Confira com git status.
+set "CURRENT_BRANCH="
+for /f "delims=" %%B in ('git branch --show-current') do set "CURRENT_BRANCH=%%B"
+if /i not "%CURRENT_BRANCH%"=="main" (
+ echo ERRO: Branch atual: [%CURRENT_BRANCH%]. Esperado: main.
  goto fail
 )
 git fetch origin main
@@ -49,15 +50,8 @@ if errorlevel 1 (
 echo Versao atual:
 git log -1 --oneline
 echo Verificando dependencias...
-call npm install --no-audit --no-fund
+call npm install --no-save --package-lock=false --no-audit --no-fund qrcode node-webpmux
 if errorlevel 1 goto npmfailure
-if not exist "node_modules\qrcode" goto optionaldeps
-if not exist "node_modules\node-webpmux" goto optionaldeps
-goto depsdone
-:optionaldeps
-call npm install --no-save --package-lock=false qrcode node-webpmux
-if errorlevel 1 goto npmfailure
-:depsdone
 
 echo Verificando LibreTranslate...
 call :health
