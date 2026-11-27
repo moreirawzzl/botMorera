@@ -41,11 +41,13 @@ git fetch origin main
 if errorlevel 1 goto gitfail
 git merge --ff-only FETCH_HEAD
 if errorlevel 1 goto gitfail
-git merge-base --is-ancestor HEAD FETCH_HEAD
-if errorlevel 1 (
- echo AVISO: Existem commits locais que nao estao na main remota.
- echo Confira git status antes de iniciar.
- goto fail
+set "LOCAL_HEAD="
+set "REMOTE_HEAD="
+for /f "delims=" %%H in ('git rev-parse HEAD') do set "LOCAL_HEAD=%%H"
+for /f "delims=" %%H in ('git rev-parse FETCH_HEAD') do set "REMOTE_HEAD=%%H"
+if /i not "%LOCAL_HEAD%"=="%REMOTE_HEAD%" (
+ echo AVISO: A versao local esta a frente da main remota.
+ echo Os commits locais foram preservados; iniciando sem enviar nada ao GitHub.
 )
 echo Versao atual:
 git log -1 --oneline
