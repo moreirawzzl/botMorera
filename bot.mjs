@@ -1,6 +1,6 @@
 import moderacao from './hiyuki/arquivos/js/moderacao.js'
 import rankinggrupo from './hiyuki/arquivos/js/rankinggrupo.js'
-import { rememberName } from './extras.mjs'
+import { rememberName, temPermissaoDono } from './extras.mjs'
 import agenda from './hiyuki/arquivos/js/agenda.js'
 import * as Baileys from '@whiskeysockets/baileys'
 import qrcode from 'qrcode-terminal'
@@ -36,8 +36,18 @@ const arquivo = path.join(pastaAuth, 'pedidos-figaudio.json')
 const registro = fs.existsSync(arquivo)
   ? JSON.parse(fs.readFileSync(arquivo, 'utf8'))
   : { desde: Math.floor(Date.now() / 1000), pedidos: {} }
-let ativo
-setInterval(() => agenda.entregar(ativo).catch(e => console.log("Agenda:",e.message)), 15000).unref()
+const controle = path.join(pastaSessao, 'controle-respostas.json')
+const donoPrincipal = JSON.parse(fs.readFileSync(new URL('./hiyuki/database/config.json',import.meta.url),'utf8').replace(/^\uFEFF/, '')).NumeroDoDono + '@s.whatsapp.net'
+let selecionado = fs.existsSync(controle) ? JSON.parse(fs.readFileSync(controle,'utf8')).selecionado : 'moreira'
+let ativo, papel
+const responde = () => Boolean(papel && papel === selecionado)
+function selecionar(nome) {
+  fs.mkdirSync(pastaSessao,{recursive:true})
+  fs.writeFileSync(controle+'.tmp',JSON.stringify({selecionado:nome}))
+  fs.renameSync(controle+'.tmp',controle)
+  selecionado=nome
+}
+setInterval(() => responde() && agenda.entregar(ativo).catch(e => console.log("Agenda:",e.message)), 15000).unref()
 let fila = Promise.resolve()
 let ffmpegDisponivel = await verificarFfmpeg()
 
@@ -139,13 +149,18 @@ async function iniciar() {
   const { state, saveCreds } = await useMultiFileAuthState(pastaSessao)
   const sock = makeWASocket({ auth: state, logger })
   let conectadoEm
+  const sendOriginal = sock.sendMessage.bind(sock)
+  const relayOriginal = sock.relayMessage.bind(sock)
+  // Keep the connection alive, but block outgoing bot replies when inactive.
+  sock.sendMessage = (...args) => responde() ? sendOriginal(...args) : Promise.reject(Error('Sessao em silencio'))
+  sock.relayMessage = (...args) => responde() ? relayOriginal(...args) : Promise.reject(Error('Sessao em silencio'))
   salvar()
 
   function enfileirar(chave) {
     fila = fila.then(async () => {
       const pedido = registro.pedidos[chave]
-      if (!pedido || ativo !== sock) return
-      const vigente = () => registro.pedidos[chave] === pedido
+      if (!pedido || ativo !== sock || !responde()) return
+      const vigente = () => responde() && ativo === sock && registro.pedidos[chave] === pedido
       const solicitacao = pedido.solicitacao ? Baileys.proto.WebMessageInfo.decode(Buffer.from(pedido.solicitacao, 'base64')) : undefined
       if (pedido.video) {
         if (!ffmpegDisponivel) {
@@ -191,6 +206,9 @@ async function iniciar() {
       }
       conectadoEm = Math.floor(Date.now() / 1000)
       ativo = sock
+      const id = Baileys.jidNormalizedUser(sock.user.id)
+      papel = id === donoPrincipal ? 'moreira' : 'andrade'
+      console.log('Sessao:',papel,'| respostas:',responde()?'ATIVAS':'DESATIVADAS')
       for (const [chave, pedido] of Object.entries(registro.pedidos)) {
         if (pedido) enfileirar(chave)
       }
@@ -224,6 +242,24 @@ async function iniciar() {
       const texto = conteudo?.videoMessage?.caption ?? conteudo?.imageMessage?.caption ?? conteudo?.extendedTextMessage?.text ?? conteudo?.conversation
       const comando = (texto || '').normalize('NFKC').replace(/[\u200b-\u200f\ufeff]/gu, '').trim()
       const jid = m.key.remoteJid
+      const troca = /^\.(andrade|moreira)$/i.exec(comando)
+      if(troca){
+        if(!aoVivo || historico || recentes.has(jid+'/'+m.key.id))continue
+        recentes.add(jid+'/'+m.key.id)
+        if(recentes.size>4096)recentes.delete(recentes.values().next().value)
+        const ids=m.key.fromMe?[sock.user.id,sock.user.lid]:jid?.endsWith('@g.us')?[m.key.participant,m.key.participantAlt]:[jid,m.key.remoteJidAlt]
+        const sender=ids.filter(Boolean).map(Baileys.jidNormalizedUser).find(x=>x.endsWith('@s.whatsapp.net'))||ids.filter(Boolean).map(Baileys.jidNormalizedUser)[0]||''
+        if(!m.key.fromMe && !(await temPermissaoDono(sender,donoPrincipal,sock,m.key)))continue
+        const nome=troca[1].toLowerCase()
+        selecionar(nome)
+        console.log('Sessao selecionada:',nome,'| local:',papel)
+        if(responde()){
+          await sock.sendMessage(jid,{text:'✅ Sessão '+nome.toUpperCase()+' ativa. A outra sessão deve permanecer em silêncio.'},{quoted:m})
+          for(const [chave,pedido] of Object.entries(registro.pedidos))if(pedido)enfileirar(chave)
+        }
+        continue
+      }
+      if(!responde())continue
       if (aoVivo && jid?.endsWith('@g.us')) {
         const removida = await moderacao.inspect(sock,m,comando).catch(e=>{console.error('Moderacao:',e.message);return false})
         if (removida) continue
@@ -274,7 +310,7 @@ async function iniciar() {
   }
   sock.ev.on('messages.upsert', ({ messages, type }) => receber(messages, false, type === 'notify').catch(e => console.log(e.message)))
   sock.ev.on('messaging-history.set', ({ messages }) => receber(messages, true, false).catch(e => console.log(e.message)))
-  sock.ev.on('group-participants.update', evento => boasVindas(sock, evento).catch(e => console.log(e.message)))
+  sock.ev.on('group-participants.update', evento => responde() && boasVindas(sock, evento).catch(e => console.log(e.message)))
 }
 
 if (!ffmpegDisponivel) {
