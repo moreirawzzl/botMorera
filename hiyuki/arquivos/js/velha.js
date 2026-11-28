@@ -103,9 +103,13 @@ async function executar(ctx, acao, destino = arquivo) {
     if(!jogo){
       const mode=op
       const g={jogadores:[sender],casas:Array(9).fill(null),turno:0,aceito:true,ia:mode}
-      if(mode==='master')g.casas[chooseMove(g.casas,mode)]='O'
+      const starters=estado.velhaIAStarters||(estado.velhaIAStarters={})
+      const starterKey=from+'/'+sender
+      const starter=starters[starterKey]||'X'
+      starters[starterKey]=starter==='X'?'O':'X'
+      if(starter==='O')g.casas[chooseMove(g.casas,mode)]='O'
       estado.jogos[from]=g;salvar()
-      return reply('🎮 JOGO DA VELHA — '+mode.toUpperCase()+'\nVocê ❌ / Bot ⭕\n\n'+tabuleiro(g)+'\nUse '+prefix+'velha 1 até 9. Treino sem pontos ou aura.')
+      return reply('🎮 JOGO DA VELHA — '+mode.toUpperCase()+'\nVocê ❌ / Bot ⭕\nQuem começou: '+(starter==='X'?'Você':'Bot')+'\n\n'+tabuleiro(g)+'\nUse '+prefix+'velha 1 até 9. Treino sem pontos ou aura.')
     }
     if(!jogo.jogadores.includes(sender)&&!(op==='cancelar'&&ctx.isDono))return reply('Essa partida pertence a outro jogador.')
     if(op==='cancelar'){delete estado.jogos[from];salvar();return reply('Treino cancelado.')}
