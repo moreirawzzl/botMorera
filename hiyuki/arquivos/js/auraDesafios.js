@@ -29,11 +29,12 @@ async function execute(c,type){
   delete g.active[type];save(d);r=null
  }
  if(r&&Date.now()>r.expires){delete g.active[type];save(d);r=null;if(arg)return c.reply('Tempo encerrado! Inicie outra rodada com '+c.prefix+type+'.')}
+ if(arg==='--revelar'){if(!r)return c.reply('Não tem rodada.');delete g.active[type];save(d);return c.reply('Resposta: '+r.answer)}
  if(!arg){
   if(r)return c.reply(display(type,r,c.prefix))
   const bank=type==='quiz'?quiz:words,used=type==='quiz'?g.usedQuiz:g.usedWords
   const available=bank.filter(x=>!used.includes(norm(x[0])))
-  if(!available.length)return c.reply('Banco de desafios esgotado. Aguarde novas perguntas ou palavras; não vou repetir.')
+  if(!available.length){used.length=0;available.push(...bank)}
   const item=available[randomInt(available.length)]
   used.push(norm(item[0]))
   r={id:randomUUID(),expires:Date.now()+180000,answer:norm(type==='quiz'?item[1]:item[0]),hint:item[1],letters:[],errors:0}
@@ -64,6 +65,6 @@ async function execute(c,type){
  }
  if(type==='forca'&&r.errors>=6){delete g.active[type];save(d);return c.reply('Fim de jogo! A palavra era *'+r.answer.toUpperCase()+'*.')}
  save(d)
- return c.reply(type==='forca'?display(type,r,c.prefix):'Errou! Tente novamente.')
+ return c.reply(type==='forca'?display(type,r,c.prefix):'Errou, porra. Tenta novamente.')
 }
 module.exports={execute}
