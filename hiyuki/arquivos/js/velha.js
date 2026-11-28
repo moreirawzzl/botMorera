@@ -1,3 +1,4 @@
+const {chooseMove}=require('./velhaIA')
 const fs = require('node:fs')
 const aura = require('./auraJogo')
 const {members,match,quotedMentions} = require('./resenhaMembros')
@@ -22,7 +23,7 @@ async function identidades(ctx) {
   return ids
 }
 function tabuleiro(jogo) {
-  const casas = jogo.casas.map((v,i) => v === 'X' ? String.fromCodePoint(10060) : v === 'O' ? String.fromCodePoint(11093) : String.fromCodePoint(11036))
+  const casas = jogo.casas.map((v,i) => v === 'X' ? String.fromCodePoint(10060) : v === 'O' ? String.fromCodePoint(11093) : (jogo.ia?String(i+1)+'️⃣':String.fromCodePoint(11036)))
   return [0,3,6].map(i => casas.slice(i,i+3).join(' ')).join('\n')
 }
 async function executar(ctx, acao, destino = arquivo) {
@@ -30,7 +31,7 @@ async function executar(ctx, acao, destino = arquivo) {
   let sender = normalizar(ctx.sender)
   const aposta = acao === 'apostarauravelha'
   if (aposta) acao = 'velha'
-  const op = (args[0] || '').toLowerCase()
+  const op = (args[0] || '').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase()
   let alvo = normalizar(info.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0])
   if (!alvo && ['addpontos','tirarpontos','pontos'].includes(acao)) alvo = normalizar(info.message?.extendedTextMessage?.contextInfo?.participant)
   if (acao === 'velha' && (op === 'aceitar' || op === 'cancelar' || /^[1-9]$/.test(op))) alvo = undefined
@@ -95,9 +96,36 @@ async function executar(ctx, acao, destino = arquivo) {
     salvar()
     return enviar(nomes(alvo)+(acao === 'tirarpontos' ? ' perdeu '+(antes-estado.pontos[alvo]) : ' recebeu '+n)+' pontos. Total: '+estado.pontos[alvo]+'.',[alvo])
   }
+  // Solo games are isolated from human matches and never award real points or aura.
+  const modos=['facil','dificil','impossivel','master']
+  if(!aposta && acao==='velha' && !alvo && (modos.includes(op)||jogo?.ia)){
+    if(jogo&&!jogo.ia)return reply('Já existe uma partida entre jogadores nesta conversa.')
+    if(!jogo){
+      const mode=op
+      const g={jogadores:[sender],casas:Array(9).fill(null),turno:0,aceito:true,ia:mode}
+      if(mode==='master')g.casas[chooseMove(g.casas,mode)]='O'
+      estado.jogos[from]=g;salvar()
+      return reply('🎮 JOGO DA VELHA — '+mode.toUpperCase()+'\nVocê ❌ / Bot ⭕\n\n'+tabuleiro(g)+'\nUse '+prefix+'velha 1 até 9. Treino sem pontos ou aura.')
+    }
+    if(!jogo.jogadores.includes(sender)&&!(op==='cancelar'&&ctx.isDono))return reply('Essa partida pertence a outro jogador.')
+    if(op==='cancelar'){delete estado.jogos[from];salvar();return reply('Treino cancelado.')}
+    if(!op)return reply(tabuleiro(jogo)+'\nSua vez! Modo '+jogo.ia)
+    if(!/^[1-9]$/.test(op)||jogo.casas[Number(op)-1])return reply('Casa inválida ou ocupada.\n'+tabuleiro(jogo))
+    jogo.casas[Number(op)-1]='X'
+    let resultado
+    if(linhas.some(l=>l.every(i=>jogo.casas[i]==='X')))resultado='🏆 Você ganhou!'
+    else if(jogo.casas.every(Boolean))resultado='Empate!'
+    else{
+      jogo.casas[chooseMove(jogo.casas,jogo.ia)]='O'
+      if(linhas.some(l=>l.every(i=>jogo.casas[i]==='O')))resultado='⭕ O bot ganhou!'
+      else if(jogo.casas.every(Boolean))resultado='Empate!'
+    }
+    if(resultado)delete estado.jogos[from]
+    salvar();return reply(tabuleiro(jogo)+'\n'+(resultado||'Sua vez!'))
+  }
   if (!op && !alvo) {
     if (jogo) return enviar(tabuleiro(jogo)+'\n'+(jogo.aceito?'Vez de '+nomes(jogo.jogadores[jogo.turno]):nomes(jogo.jogadores[1])+', envie '+prefix+'velha aceitar.'),jogo.jogadores)
-    return reply('Desafie alguém com '+prefix+'velha @jogador. Vitória vale 3 pontos e empate vale 1 para cada.')
+    return reply('Desafie alguém com '+prefix+'velha @jogador. Vitória vale 3 pontos e empate vale 1 para cada.\nTreino contra o bot: '+prefix+'velha facil | dificil | impossivel | master')
   }
   if (aposta) {
     if(jogo)return reply('Já existe uma partida ou convite aqui. Use '+prefix+'velha para consultar.')
