@@ -90,7 +90,7 @@ function gamePrize(groupId,id,key){
  if(!Number.isSafeInteger(p.score+100))return {error:'Limite de saldo atingido.'}
  p.score+=100;prizes[key]={id,score:p.score};save(d);return {ok:true,score:p.score}
 }
-const soloRewards={facil:300,dificil:1200,impossivel:10000,master:5000}
+const soloRewards={facil:100,dificil:500,impossivel:1500,master:6000}
 function currency(groupId){return read()[groupId]?.currency||'aura'}
 function setCurrency(groupId,name){name=String(name).trim().replace(/\s+/g,' ');if(!/^[\p{L}\p{N}][\p{L}\p{N} -]{1,23}$/u.test(name))return {error:'Nome inválido: use 2 a 24 letras, números, espaços ou hífen.'};const d=read(),g=group(d,groupId);g.currency=name;save(d);return {name}}
 function soloPrize(groupId,id,key,mode,now=Date.now()){
