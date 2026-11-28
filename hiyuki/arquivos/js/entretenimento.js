@@ -23,6 +23,12 @@ const verbs={abracar:'abraçou',beijar:'beijou',jantar:'chamou para jantar',cafu
 const reactions={comemorar:'🎉 comemorou pra caralho!',aplaudir:'👏 aplaudiu de pé!',acenar:'👋 mandou um salve!',facepalm:'🤦 perdeu a fé na humanidade.',chorar:'😭 desabou de tanto chorar.',dancar:'🕺 mandou o passinho.',cantar:'🎤 soltou a voz, infelizmente.',confuso:'❓ não entendeu porra nenhuma.'}
 const banks={voceprefere:pairs.map(([a,b])=>['Você prefere '+a+' ou '+b+'?',[a,b]]),issoouaquilo:pairs.map(([a,b])=>['Escolhe logo:',[a,b]]),polemica:pairs.map(([a,b])=>['Qual é melhor: '+a+' ou '+b+'?',[a,b]]),maisoumenos:situations.map(s=>['O que acha de '+s+'?',['Boa','Mais ou menos','Uma merda']]),eununca:situations.map(s=>['Eu nunca '+s.replace(/^/,'tentei '),['Já fiz','Nunca fiz']]),conselho:situations.map(s=>'Se for '+s+', pensa antes de fazer merda.'),verdade:situations.map(s=>'Já aconteceu de você '+s+'? Conta essa história.')}
 function draw(g,k,a){const h=g.used||(g.used={});let ids=h[k]||[];ids=ids.filter(i=>i>=0&&i<a.length);if(!ids.length)ids=a.map((_,i)=>i);const [i]=ids.splice(randomInt(ids.length),1);h[k]=ids;return a[i]}
+const animalQuestions=animals.flatMap(([answer,clue],i)=>animals.filter((_,j)=>j!==i).slice(0,20).map(([other])=>{const options=[answer,other].sort((a,b)=>a.localeCompare(b));return ['🐾 Qual dos dois tem esta característica: '+clue+'?\n'+options.join(' ou '),answer]}))
+const objects=['troféu','relógio','celular','chave','medalha','anel','carteira','livro','quadro','tablet','microfone','notebook','guitarra','câmera','bilhete','documento','pulseira','mochila','passaporte','controle','fone','pendrive','boné','mapa','envelope']
+const suspects=['Alex','Bruno','Caio','Dani','Eli']
+const mysteries=objects.flatMap((obj,i)=>Array.from({length:20},(_,j)=>{const guilty=(i+j)%5, others=suspects.filter((_,k)=>k!==guilty);const first=others[j%4],second=others[(j+1)%4],third=others[(j+2)%4],fourth=others[(j+3)%4];const places=['biblioteca','garagem','estúdio','cozinha'][Math.floor(j/5)];return ['🕵️ Caso: sumiu um '+obj+' na '+places+'. Suspeitos: '+suspects.join(', ')+'. As imagens confirmam que '+first+' e '+second+' estavam juntos fora do local. '+third+' tinha saído antes do sumiço. '+fourth+' chegou depois. Quem sobrou?',suspects[guilty].toLowerCase()]}))
+const riddles=Array.from({length:25},(_,i)=>Array.from({length:20},(_,j)=>{const a=i+4,b=j+3;return ['Tenho '+(a*b)+' moedas para distribuir em '+b+' sacos com quantidades iguais. Quantas moedas vão em cada saco?',String(a)]})).flat()
+const logic=Array.from({length:25},(_,i)=>Array.from({length:20},(_,j)=>{const a=i+2,b=j+2;return ['Complete a sequência: '+[a,a+b,a+2*b,a+3*b].join(', ')+', ?',String(a+4*b)]})).flat()
 const games=['termo','adivinhe','bandeira','stop','cacapalavras','memoria','charada','contrarelogio','enigma','quiz_animais','detetive','batalha','duelojjk','campeonato']
 const help=(c,k)=>c.prefix+k
 async function execute(c,k){
@@ -32,10 +38,10 @@ async function execute(c,k){
  if(!me)return c.reply('Não achei teu usuário.')
  const d=read(),g=d[c.from]||(d[c.from]={active:{},rank:{}}),a=g.active
  const q=norm(c.q), reply=t=>c.reply(t), send=(t,ids)=>c.columbina.sendMessage(c.from,{text:t,mentions:ids},{quoted:c.info})
- if(verbs[k]){const ids=await quotedMentions(c);const id=ids[0]||await c.quotedAuthor();const target=await match(c,rows,id);if(!target)return reply('Marca alguém ou responde a mensagem, caramba.');return send('💥 '+tag(me.id)+' '+verbs[k]+' '+tag(target.id)+'!', [me.id,target.id])}
+ if(verbs[k]){const ids=await quotedMentions(c);const id=ids[0]||(await c.quotedAuthor())?.id;const target=await match(c,rows,id);if(!target)return reply('Marca alguém ou responde a mensagem, caramba.');return send('💥 '+tag(me.id)+' '+verbs[k]+' '+tag(target.id)+'!', [me.id,target.id])}
  if(reactions[k])return send(tag(me.id)+' '+reactions[k],[me.id])
  if(banks[k]){const v=draw(g,k,banks[k]);save(d);if(Array.isArray(v))return c.columbina.sendMessage(c.from,{poll:{name:v[0],values:v[1],selectableCount:1}},{quoted:c.info});return reply(v)}
- if(k==='avalie'){const ids=await quotedMentions(c),target=await match(c,rows,ids[0]||await c.quotedAuthor());if(!target)return reply('Marca quem vai ser avaliado.');return send('📋 '+tag(target.id)+'\nNota de resenha: '+randomInt(11)+'/10',[target.id])}
+ if(k==='avalie'){const ids=await quotedMentions(c),target=await match(c,rows,ids[0]||(await c.quotedAuthor())?.id);if(!target)return reply('Marca quem vai ser avaliado.');return send('📋 '+tag(target.id)+'\nNota de resenha: '+randomInt(11)+'/10',[target.id])}
  if(k==='chance')return reply('🎲 '+(c.q||'Chance de dar merda')+': '+randomInt(101)+'%')
  if(k==='dado')return reply('🎲 Caiu '+randomInt(1,7)+'.')
  if(k==='sorte'){const n=createHash('sha256').update(c.from+me.id+new Date().toISOString().slice(0,10)).digest()[0]%101;return reply('🍀 Sorte de hoje: '+n+'%. '+(n<30?'Tá fodido.':'Vai que dá.'))}
@@ -46,21 +52,21 @@ async function execute(c,k){
  if(k==='t')k='termo';if(k==='p')k='cacapalavras';if(k==='m')k='memoria'
  if(!games.includes(k))return reply('Comando inválido.')
  let s=a[k];if(s&&s.expires<Date.now()){delete a[k];save(d);s=null}
- const finish=async()=>{delete a[k];if(k==='termo')g.rank[me.id]=(g.rank[me.id]||0)+1;save(d);const p=gamePrize(c.from,me.id,s.id);return send('🏆 '+tag(me.id)+' acertou! '+(s.answer||'')+(p.error?'':'\n+100 aura'),[me.id])}
+ const finish=async()=>{delete a[k];if(k==='termo')g.rank[me.id]=(g.rank[me.id]||0)+1;const now=Date.now(),last=g.lastPrize||(g.lastPrize={});const eligible=now-(last[me.id]||0)>=60000;if(eligible)last[me.id]=now;save(d);const p=eligible?gamePrize(c.from,me.id,s.id):{error:'cooldown'};return send('🏆 '+tag(me.id)+(s.answer?' acertou! '+s.answer:' venceu!')+(p.error?'':'\n+100 aura'),[me.id])}
  if(!s){
   if(q&&!['batalha','duelojjk'].includes(k))return reply('Inicia com '+help(c,k))
   s={id:randomUUID(),owner:me.id,expires:Date.now()+180000,tries:0}
   if(k==='termo'){s.answer=draw(g,k,words);s.prompt='🟩 TERMO — seis tentativas. '+help(c,'t')+' palavra'}
-  else if(k==='cacapalavras'){s.answer=draw(g,k,words);const line=shuffle([...s.answer,'x','z','q']).join('');const grid=Array.from({length:8},()=>Array.from({length:8},()=>pick('abcdefghijklmnopqrstuvwxyz'.split(''))).join(' '));const row=randomInt(8),start=randomInt(4),letters=grid[row].split(' ');letters.splice(start,5,...s.answer);grid[row]=letters.join(' ');s.prompt='🔎 CAÇA-PALAVRAS — encontre uma palavra de 5 letras (horizontal).\n'+grid.join('\n')+'\n'+help(c,'p')+' palavra'}
+  else if(k==='cacapalavras'){s.answer=draw(g,k,words);const grid=Array.from({length:8},()=>Array.from({length:8},()=>pick('abcdefghijklmnopqrstuvwxyz'.split(''))).join(' '));const row=randomInt(8),start=randomInt(4),letters=grid[row].split(' ');letters.splice(start,5,...s.answer);grid[row]=letters.join(' ');s.prompt='🔎 CAÇA-PALAVRAS — encontre uma palavra de 5 letras (horizontal).\n'+grid.join('\n')+'\n'+help(c,'p')+' palavra'}
   else if(k==='bandeira'){const v=draw(g,k,countries);s.answer=v[1];s.prompt=v[0]+' Qual país? '+help(c,k)+' país'}
-  else if(k==='quiz_animais'){const v=draw(g,k,animals);s.answer=v[0];s.prompt='🐾 Qual animal: '+v[1]+'?'}
+  else if(k==='quiz_animais'){const v=draw(g,k,animalQuestions);s.answer=norm(v[1]);s.prompt=v[0]}
   else if(k==='memoria'){s.board=shuffle(['🍌','🍌','🍉','🍉','🍇','🍇','🍓','🍓']);s.found=[];s.prompt='🧠 MEMÓRIA: 1 2 3 4 5 6 7 8\n'+help(c,'m')+' 1 2 para virar duas cartas.'}
   else if(k==='stop'){s.letter=pick('abcdefghijklmnopqrstuv'.split(''));s.prompt='🛑 STOP — letra '+s.letter.toUpperCase()+'\n'+help(c,k)+' nome | animal | comida | cidade'}
-  else if(k==='batalha'||k==='duelojjk'){const ids=await quotedMentions(c),target=await match(c,rows,ids[0]||await c.quotedAuthor());if(!target||target.id===me.id)return reply('Marca um adversário.');s.players=[me.id,target.id];s.hp=[100,100];s.turn=0;s.guard=[false,false];s.energy=[3,3];s.prompt='⚔️ '+tag(me.id)+' vs '+tag(target.id)+'\n'+help(c,k)+' atacar / defender'+(k==='duelojjk'?' / especial':'')+' — começa quem desafiou.'}
+  else if(k==='batalha'||k==='duelojjk'){const ids=await quotedMentions(c),target=await match(c,rows,ids[0]||(await c.quotedAuthor())?.id);if(!target||target.id===me.id)return reply('Marca um adversário.');s.players=[me.id,target.id];s.hp=[100,100];s.turn=0;s.guard=[false,false];s.energy=[3,3];s.prompt='⚔️ '+tag(me.id)+' vs '+tag(target.id)+'\n'+help(c,k)+' atacar / defender'+(k==='duelojjk'?' / especial':'')+' — começa quem desafiou.'}
   else if(k==='campeonato'){s.players=[me.id];s.prompt='🏆 CAMPEONATO — '+help(c,k)+' entrar / iniciar (mínimo 2).'}
-  else if(k==='detetive'){const suspects=['o porteiro','o cozinheiro','o motorista','o fotógrafo','o músico'];const guilty=pick(suspects);s.answer=guilty;s.prompt='🕵️ Sumiu um troféu. Suspeitos: '+suspects.join(', ')+'. Só '+guilty+' tinha a chave do armário; os demais tinham álibi. Quem levou?'}
-  else if(k==='adivinhe'){const v=draw(g,k,animals);s.answer=v[0];s.prompt='Adivinha: '+v[1]+'.'}
-  else {const v=draw(g,k,quiz);s.answer=norm(v[1]);s.answers=v.slice(1).map(norm);s.prompt=(k==='contrarelogio'?'⏱️ 20 segundos! ':'🧩 ')+v[0];if(k==='contrarelogio')s.expires=Date.now()+20000}
+  else if(k==='detetive'){const v=draw(g,k,mysteries);s.answer=v[1];s.prompt=v[0]}
+  else if(k==='adivinhe'){s.answer=draw(g,k,words);const hidden=randomInt(1,4);s.prompt='🔎 Adivinha a palavra: '+[...s.answer].map((x,i)=>i===0||i===4||i===hidden?x.toUpperCase():'_').join(' ')}
+  else {const v=draw(g,k,k==='charada'?riddles:k==='enigma'?logic:quiz);s.answer=norm(v[1]);s.answers=v.slice(1).map(norm);s.prompt=(k==='contrarelogio'?'⏱️ 20 segundos! ':'🧩 ')+v[0];if(k==='contrarelogio')s.expires=Date.now()+20000}
   a[k]=s;save(d);return s.players&&k!=='campeonato'?send(s.prompt,s.players):reply(s.prompt+'\nResponda com '+help(c,k)+' resposta.')
  }
  if(!q)return reply(s.prompt)
@@ -72,4 +78,5 @@ async function execute(c,k){
  if(q===s.answer||s.answers?.includes(q))return finish()
  return reply(pick(['Errou, porra.','Não foi dessa vez.','Passou longe, caramba.','Tenta de novo.']))
 }
-module.exports={execute}
+const queues=new Map();function run(c,k){const previous=queues.get(c.from)||Promise.resolve();const next=previous.catch(()=>{}).then(()=>execute(c,k));queues.set(c.from,next);return next.finally(()=>{if(queues.get(c.from)===next)queues.delete(c.from)})}
+module.exports={execute:run}

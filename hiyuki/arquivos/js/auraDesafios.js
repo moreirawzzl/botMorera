@@ -29,7 +29,7 @@ async function execute(c,type){
   delete g.active[type];save(d);r=null
  }
  if(r&&Date.now()>r.expires){delete g.active[type];save(d);r=null;if(arg)return c.reply('Tempo encerrado! Inicie outra rodada com '+c.prefix+type+'.')}
- if(arg==='--revelar'){if(!r)return c.reply('Não tem rodada.');delete g.active[type];save(d);return c.reply('Resposta: '+r.answer)}
+ if(arg==='--revelar'){if(!r)return c.reply('Não tem rodada.');if(!c.isDono&&r.owner!==me.id)return c.reply('Só quem iniciou ou o dono pode revelar.');delete g.active[type];save(d);return c.reply('Resposta: '+r.answer)}
  if(!arg){
   if(r)return c.reply(display(type,r,c.prefix))
   const bank=type==='quiz'?quiz:words,used=type==='quiz'?g.usedQuiz:g.usedWords
@@ -37,7 +37,7 @@ async function execute(c,type){
   if(!available.length){used.length=0;available.push(...bank)}
   const item=available[randomInt(available.length)]
   used.push(norm(item[0]))
-  r={id:randomUUID(),expires:Date.now()+180000,answer:norm(type==='quiz'?item[1]:item[0]),hint:item[1],letters:[],errors:0}
+  r={id:randomUUID(),owner:me.id,expires:Date.now()+180000,answer:norm(type==='quiz'?item[1]:item[0]),hint:item[1],letters:[],errors:0}
   if(type==='quiz'){r.question=item[0];r.answers=item.slice(1).map(norm)}
   if(type==='anagrama')r.scrambled=scramble(r.answer)
   g.active[type]=r;if(key)g.seen[key]=true;save(d)
