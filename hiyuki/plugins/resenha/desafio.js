@@ -1,2 +1,2 @@
-const {randomInt}=require('node:crypto');
-module.exports={name:"desafio",description:"Sorteia um desafio leve e opcional.",aliases:[],async execute(c){const a=['Conte uma piada ruim.','Descreva seu dia usando três emojis.','Invente um nome para um filme sobre o grupo.','Faça uma rima com bot paneleiro.','Mande uma figurinha engraçada.'];return c.reply('🎯 '+a[randomInt(a.length)]+'\nParticipação opcional.')}}
+const {draw}=require('../../arquivos/js/resenhaBanco')
+module.exports={name:'desafio',description:'Sorteia um desafio de resenha.',async execute(c){return c.reply('🎯 *DESAFIO*\n\n'+draw(c.from,'desafio')+'\n\nQuero ver essa merda.')}}

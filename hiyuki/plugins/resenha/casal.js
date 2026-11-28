@@ -7,6 +7,6 @@ async function execute(c,renew=false){
  const s=seed(c.from,'casal',renew)
  ids.sort((a,b)=>hash(s,a)-hash(s,b)||a.localeCompare(b))
  const [a,b]=ids
- return c.columbina.sendMessage(c.from,{text:'💞 *'+(renew?'NOVO CASAL DO DIA':'CASAL DO DIA')+'*\n\n'+tag(a)+' e '+tag(b)+'\n\n_Sorteio fictício, só brincadeira._',mentions:[a,b]},{quoted:c.info})
+ return c.columbina.sendMessage(c.from,{text:'💞 *'+(renew?'NOVO CASAL DO DIA':'CASAL DO DIA')+'*\n\n'+tag(a)+' e '+tag(b)+'',mentions:[a,b]},{quoted:c.info})
 }
-module.exports={name:'casal',description:'Mostra o casal do dia. Use .novocasal para sortear novamente.',execute:c=>execute(c),renew:c=>execute(c,true)}
+module.exports={name:'casal',aliases:['casaldodia'],description:'Mostra o casal do dia. Use .novocasal para sortear novamente.',execute:c=>execute(c),renew:c=>execute(c,true)}
