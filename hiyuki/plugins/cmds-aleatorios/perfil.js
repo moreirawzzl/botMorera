@@ -1,3 +1,4 @@
+const {wrap}=require('../../arquivos/js/moedaGrupo')
 const fs=require('node:fs')
 const path=require('node:path')
 const {members,match}=require('../../arquivos/js/resenhaMembros')
@@ -15,6 +16,7 @@ function numeric(obj,aliases){
  return values.length?Math.max(...values):0
 }
 module.exports={name:'perfil',description:'Mostra estatísticas suas ou de uma pessoa marcada.',async execute(c){
+ c=wrap(c);
  const info=c.info.message?.extendedTextMessage?.contextInfo||c.info.message?.imageMessage?.contextInfo||{}
  const mentioned=info.mentionedJid||[]
  if(mentioned.length>1)return c.reply('Marque apenas uma pessoa para consultar o perfil.')

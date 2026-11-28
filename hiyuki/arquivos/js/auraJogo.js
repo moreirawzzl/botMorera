@@ -90,4 +90,18 @@ function gamePrize(groupId,id,key){
  if(!Number.isSafeInteger(p.score+100))return {error:'Limite de saldo atingido.'}
  p.score+=100;prizes[key]={id,score:p.score};save(d);return {ok:true,score:p.score}
 }
-module.exports={ranking,steal,roll,addAura,removeAura,distribute,reserveVelha,finishVelha,daily,gamePrize}
+const soloRewards={facil:300,dificil:1200,impossivel:10000,master:20000}
+function currency(groupId){return read()[groupId]?.currency||'aura'}
+function setCurrency(groupId,name){name=String(name).trim().replace(/\s+/g,' ');if(!/^[\p{L}\p{N}][\p{L}\p{N} -]{1,23}$/u.test(name))return {error:'Nome inválido: use 2 a 24 letras, números, espaços ou hífen.'};const d=read(),g=group(d,groupId);g.currency=name;save(d);return {name}}
+function soloPrize(groupId,id,key,mode,now=Date.now()){
+ const amount=soloRewards[mode];if(!amount||!key)return {error:'Prêmio inválido.'};
+ const d=read(),g=group(d,groupId),p=player(g,id),prizes=g.soloPrizes||(g.soloPrizes={});
+ if(Object.hasOwn(prizes,key))return prizes[key];
+ const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
+ const daily=p.soloDay===day?(p.soloPaid||0):0;
+ if((p.soloLast||0)+600000>now||daily>=3){const result={amount:0,score:p.score,limited:true};prizes[key]=result;save(d);return result;}
+ if(!Number.isSafeInteger(p.score+amount))return {error:'Limite de saldo atingido.'};
+ p.score+=amount;p.soloDay=day;p.soloPaid=daily+1;p.soloLast=now;
+ const result={amount,score:p.score};prizes[key]=result;save(d);return result;
+}
+module.exports={currency,setCurrency,soloRewards,soloPrize,ranking,steal,roll,addAura,removeAura,distribute,reserveVelha,finishVelha,daily,gamePrize}

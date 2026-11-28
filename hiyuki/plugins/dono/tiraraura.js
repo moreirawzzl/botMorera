@@ -1,6 +1,8 @@
+const {wrap}=require('../../arquivos/js/moedaGrupo')
 const {members,match,quotedMentions,tag}=require('../../arquivos/js/resenhaMembros')
 const game=require('../../arquivos/js/auraJogo')
 module.exports={name:'tiraraura',description:'Dono principal: retira aura. Ex.: .tiraraura 500 ou .tiraraura @pessoa 500',async execute(c){
+ c=wrap(c);
  if(c.sender!==c.donoJid)return c.reply('Exclusivo do dono principal.')
  if(!c.isGroup)return c.reply('Só em grupos.')
  const args=c.args.filter(Boolean)

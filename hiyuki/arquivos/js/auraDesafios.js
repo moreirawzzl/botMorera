@@ -1,3 +1,4 @@
+const {wrap}=require('./moedaGrupo')
 const fs=require('node:fs'),path=require('node:path'),{randomInt,randomUUID}=require('node:crypto')
 const {words,quiz}=require('./auraDesafiosBanco')
 const {members,match,tag}=require('./resenhaMembros')
@@ -13,6 +14,7 @@ function display(type,r,prefix){
  return '🔤 *FORCA* — 100 aura\n\n'+[...r.answer].map(x=>r.letters.includes(x)?x.toUpperCase():'▢').join(' ')+'\nDica: '+r.hint+'\nErros: '+r.errors+'/6\nLetras: '+(r.letters.join(', ')||'nenhuma')+'\n\nUse '+prefix+'forca letra ou palavra'
 }
 async function execute(c,type){
+ c=wrap(c);
  if(!c.isGroup)return c.reply('Só em grupos.')
  const me=await match(c,await members(c),c.sender)
  if(!me)return c.reply('Não consegui identificar seu jogador.')

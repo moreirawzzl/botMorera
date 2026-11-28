@@ -1,3 +1,4 @@
+const {wrap}=require('./moedaGrupo')
 const {chooseMove}=require('./velhaIA')
 const fs = require('node:fs')
 const aura = require('./auraJogo')
@@ -27,6 +28,7 @@ function tabuleiro(jogo) {
   return [0,3,6].map(i => casas.slice(i,i+3).join(' ')).join('\n')
 }
 async function executar(ctx, acao, destino = arquivo) {
+  ctx=wrap(ctx)
   const {from, prefix, args, info, columbina, reply} = ctx
   let sender = normalizar(ctx.sender)
   const aposta = acao === 'apostarauravelha'
@@ -96,20 +98,25 @@ async function executar(ctx, acao, destino = arquivo) {
     salvar()
     return enviar(nomes(alvo)+(acao === 'tirarpontos' ? ' perdeu '+(antes-estado.pontos[alvo]) : ' recebeu '+n)+' pontos. Total: '+estado.pontos[alvo]+'.',[alvo])
   }
-  // Solo games are isolated from human matches and never award real points or aura.
+  // Solo games use an idempotent group reward, never a wager.
   const modos=['facil','dificil','impossivel','master']
   if(!aposta && acao==='velha' && !alvo && (modos.includes(op)||jogo?.ia)){
     if(jogo&&!jogo.ia)return reply('Já existe uma partida entre jogadores nesta conversa.')
     if(!jogo){
       const mode=op
-      const g={jogadores:[sender],casas:Array(9).fill(null),turno:0,aceito:true,ia:mode}
+      let rewardId=null
+      if(ctx.isGroup){const member=await match(ctx,await members(ctx),ctx.sender);if(!member)return reply('Não consegui identificar seu jogador.');rewardId=member.id;}
+      // Re-read after asynchronous identity lookup to prevent overwriting concurrent games.
+      if(ler().jogos[from])return reply('Já existe uma partida nesta conversa.');
+      Object.assign(estado,ler());
+      const g={jogadores:[sender],casas:Array(9).fill(null),turno:0,aceito:true,ia:mode,rewardId,rewardKey:chave}
       const starters=estado.velhaIAStarters||(estado.velhaIAStarters={})
       const starterKey=from+'/'+sender
       const starter=starters[starterKey]||'X'
       starters[starterKey]=starter==='X'?'O':'X'
       if(starter==='O')g.casas[chooseMove(g.casas,mode)]='O'
       estado.jogos[from]=g;salvar()
-      return reply('🎮 JOGO DA VELHA — '+mode.toUpperCase()+'\nVocê ❌ / Bot ⭕\nQuem começou: '+(starter==='X'?'Você':'Bot')+'\n\n'+tabuleiro(g)+'\nUse '+prefix+'velha 1 até 9. Treino sem pontos ou aura.')
+      return reply('🎮 JOGO DA VELHA — '+mode.toUpperCase()+'\nVocê ❌ / Bot ⭕\nQuem começou: '+(starter==='X'?'Você':'Bot')+'\n\n'+tabuleiro(g)+'\nUse '+prefix+'velha 1 até 9. '+(ctx.isGroup?'Vitória: '+aura.soloRewards[mode].toLocaleString('pt-BR')+' '+aura.currency(from)+' (limites de recompensa aplicáveis).':'Treino privado sem recompensa.')+'')
     }
     if(!jogo.jogadores.includes(sender)&&!(op==='cancelar'&&ctx.isDono))return reply('Essa partida pertence a outro jogador.')
     if(op==='cancelar'){delete estado.jogos[from];salvar();return reply('Treino cancelado.')}
@@ -124,6 +131,7 @@ async function executar(ctx, acao, destino = arquivo) {
       if(linhas.some(l=>l.every(i=>jogo.casas[i]==='O')))resultado='⭕ O bot ganhou!'
       else if(jogo.casas.every(Boolean))resultado='Empate!'
     }
+    if(resultado&&linhas.some(l=>l.every(i=>jogo.casas[i]==='X'))&&ctx.isGroup&&jogo.rewardId&&jogo.rewardKey){const prize=aura.soloPrize(from,jogo.rewardId,jogo.rewardKey,jogo.ia);resultado+='\n'+(prize.error?prize.error:prize.limited?'Limite de recompensas atingido. Vitória registrada sem prêmio.':'🎁 +'+prize.amount.toLocaleString('pt-BR')+' '+aura.currency(from)+'\nSaldo: '+prize.score.toLocaleString('pt-BR')+' '+aura.currency(from));}
     if(resultado)delete estado.jogos[from]
     salvar();return reply(tabuleiro(jogo)+'\n'+(resultado||'Sua vez!'))
   }

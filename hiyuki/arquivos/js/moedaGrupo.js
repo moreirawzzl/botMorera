@@ -1,0 +1,4 @@
+const {currency}=require('./auraJogo')
+function label(text,id){const name=currency(id);if(name==='aura')return text;return String(text).replace(/(?<![\p{L}\p{N}_.@-])aura(?![\p{L}\p{N}_-])/giu,m=>m==='AURA'?name.toUpperCase():m==='Aura'?name[0].toUpperCase()+name.slice(1):name)}
+function wrap(c){if(!c.isGroup)return c;const reply=c.reply.bind(c),sock=c.columbina;const proxy=new Proxy(sock,{get(target,key){if(key==='sendMessage')return (to,message,...args)=>target.sendMessage(to,to===c.from&&typeof message?.text==='string'?{...message,text:label(message.text,c.from)}:message,...args);const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});return {...c,reply:(text,...args)=>reply(typeof text==='string'?label(text,c.from):text,...args),columbina:proxy}}
+module.exports={wrap,label}

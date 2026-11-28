@@ -1,6 +1,8 @@
+const {wrap}=require('../../arquivos/js/moedaGrupo')
 const {members,match}=require('../../arquivos/js/resenhaMembros')
 const {daily}=require('../../arquivos/js/auraJogo')
 module.exports={name:'daily',description:'Resgata aura diária; aumenta 100 por dia consecutivo.',async execute(c){
+ c=wrap(c);
  if(!c.isGroup)return c.reply('Só em grupos.')
  const p=await match(c,await members(c),c.sender)
  if(!p)return c.reply('Não consegui identificar seu jogador.')

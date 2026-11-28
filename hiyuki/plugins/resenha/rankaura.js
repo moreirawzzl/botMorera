@@ -1,6 +1,8 @@
+const {wrap}=require('../../arquivos/js/moedaGrupo')
 const {members,tag,match}=require('../../arquivos/js/resenhaMembros')
 const game=require('../../arquivos/js/auraJogo')
 module.exports={name:'rankaura',aliases:['rankingaura','auradodia'],description:'Ranking permanente de aura do grupo. Use .roubar @pessoa para disputar pontos.',async execute(c){
+ c=wrap(c);
  if(!c.isGroup)return c.reply('Só em grupos.')
  const rows=await members(c)
  if(!rows.length)return c.reply('Nenhum participante encontrado.')

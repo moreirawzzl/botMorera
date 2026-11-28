@@ -1,6 +1,8 @@
+const {wrap}=require('../../arquivos/js/moedaGrupo')
 const {members,match,quotedMentions,tag}=require('../../arquivos/js/resenhaMembros')
 const game=require('../../arquivos/js/auraJogo')
 module.exports={name:'addaura',description:'Dono principal: adiciona aura. Ex.: .addaura @pessoa 500',async execute(c){
+ c=wrap(c);
  if(c.sender!==c.donoJid)return c.reply('Exclusivo do dono principal.')
  if(!c.isGroup)return c.reply('Só em grupos.')
  const marked=await quotedMentions(c),amounts=c.args.filter(x=>/^\d+$/.test(x))

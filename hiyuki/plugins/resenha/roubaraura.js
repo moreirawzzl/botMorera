@@ -1,7 +1,9 @@
+const {wrap}=require('../../arquivos/js/moedaGrupo')
 const {members,match,quotedMentions,tag}=require('../../arquivos/js/resenhaMembros')
 const game=require('../../arquivos/js/auraJogo')
 const horarioLiberacao=timestamp=>new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'medium'}).format(new Date(timestamp)).replace(',',' às')
 module.exports={name:'roubar',aliases:['roubaraura','rouboaura','furtaraura'],description:'Tenta roubar aura de um membro marcado. Chance de 65%; intervalo de 5 minutos.',async execute(c){
+ c=wrap(c);
  if(!c.isGroup)return c.reply('Só em grupos.')
  const marked=await quotedMentions(c)
  if(marked.length!==1)return c.reply('Use '+c.prefix+'roubar @pessoa (uma menção).')
